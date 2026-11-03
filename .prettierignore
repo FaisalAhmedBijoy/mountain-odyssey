@@ -1,0 +1,7 @@
+dist
+public
+docs
+playwright-report
+test-results
+.venv
+package-lock.json

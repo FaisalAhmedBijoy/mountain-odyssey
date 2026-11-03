@@ -46,6 +46,7 @@ Load a specific mountain with `?mountain=<id>` (e.g. `/?mountain=test-peak`); de
 **Movement logic is pure and separate from physics:** `movementState.ts` (state machine: walk/run/slide/climb/fall), `stamina.ts` and `fallDamage.ts` are pure functions unit-tested without Rapier. `Player.ts` glues them to physics and raycasts. Fall damage is measured from the peak height across both `fall` and `slide` states.
 
 **Terrain is data, not code:**
+
 - Offline: `tools/terrain/bake.py` crops the Copernicus GLO-30 DEM, resamples it to a 2 m local metric grid, adds detail noise, finds camps (walk from the summit along a bearing to a target elevation, pick the flattest cell) and writes `manifest.json`, `backdrop.u16` and `tiles/<tx>_<tz>.u16`.
 - Tiles are raw little-endian `uint16`, 257 × 257 samples, row-major with row = z, and neighbouring tiles share edge samples. Height = `min + v / 65535 * (max - min)` from the manifest.
 - World axes: x = east, z = south, y = up (real elevation in metres). Camera yaw 0 looks toward −Z (north).
