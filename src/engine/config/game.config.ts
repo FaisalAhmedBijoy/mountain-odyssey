@@ -71,6 +71,8 @@ export const GAME_CONFIG = {
       { maxRing: 3, step: 32 },
     ],
     skirtDepthM: 20,
+    /** Respawn when the feet drop this far below the lowest baked height. */
+    outOfWorldDropM: 50,
   },
   world: { skyColor: 0xa9c4dd, fogNear: 800, fogFar: 7000, sunDirection: [0.4, 0.8, 0.3] },
   hud: { publishIntervalMs: 100, toastMs: 3000 },

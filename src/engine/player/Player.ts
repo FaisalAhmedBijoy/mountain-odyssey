@@ -141,6 +141,8 @@ export class Player {
     let mantle: Vec3 | null = null;
     if (prev !== next) {
       if (UNCONTROLLED.has(prev) && (next === 'walk' || next === 'run')) this.land(center.y);
+      // Grabbing a wall mid-fall ends the uncontrolled segment: score the drop so far.
+      if (UNCONTROLLED.has(prev) && next === 'climb' && this.fallArmed) this.land(center.y);
       if (!UNCONTROLLED.has(prev) && UNCONTROLLED.has(next)) {
         this.fallPeakY = center.y;
         this.fallArmed = false;

@@ -119,6 +119,36 @@ describe('Player', () => {
     expect(player.snapshot.stamina.cap).toBe(70);
   });
 
+  describe('grabbing a wall mid-fall', () => {
+    // A 30 m wall between z = -11 and z = -10; the player starts in the air beside it,
+    // facing the wall (-Z), with 20 m of air below.
+    const wall = (z: number) => (z <= -11 ? 130 : 100);
+
+    async function fallThenGrab(grabBelowY: number) {
+      const ctx = await setup({ x: 0, y: 120, z: -9.8 }, wall, tallManifest);
+      for (let i = 0; i < 300 && ctx.player.snapshot.feet.y > grabBelowY; i++) ctx.run({}, 1);
+      expect(ctx.player.snapshot.state).toBe('fall');
+      ctx.run({ grab: true }, 1);
+      expect(ctx.player.snapshot.state).toBe('climb');
+      ctx.run({}, 30);
+      return ctx;
+    }
+
+    it('scores a drop of more than 6 m before the grab as an injury', async () => {
+      const { player, fell } = await fallThenGrab(112);
+      expect(fell).toHaveLength(1);
+      expect(fell[0]!.outcome).toBe('injury');
+      expect(fell[0]!.dropM).toBeGreaterThan(6);
+      expect(fell[0]!.dropM).toBeLessThan(10);
+      expect(player.snapshot.stamina.cap).toBe(70);
+    });
+
+    it('does not score a drop of less than 6 m before the grab', async () => {
+      const { fell } = await fallThenGrab(117);
+      expect(fell.filter((e) => e.outcome !== 'none')).toEqual([]);
+    });
+  });
+
   it('teleport resets position, state and stamina', async () => {
     const { player, run } = await setup({ x: 0, y: 100.05, z: 0 });
     run({ forward: 1, run: true }, 60);

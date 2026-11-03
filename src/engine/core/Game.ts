@@ -10,8 +10,9 @@ import { ChunkManager } from '../world/ChunkManager';
 import { Environment } from '../world/Environment';
 import { SyncMeshBuilder, WorkerMeshBuilder, type MeshBuilder } from '../world/meshBuilder';
 import { NO_GEAR } from '../world/surface';
-import { loadManifest, type CampDef } from '../world/terrainData';
+import { loadManifest, type CampDef, type TerrainManifest } from '../world/terrainData';
 import { TerrainSampler } from '../world/TerrainSampler';
+import { isOutOfWorld } from '../world/worldBounds';
 import { EventBus } from './EventBus';
 import type { GameEvents } from './events';
 import { GameLoop } from './GameLoop';
@@ -28,6 +29,7 @@ export interface GameOptions {
 }
 
 interface World {
+  manifest: TerrainManifest;
   physics: PhysicsWorld;
   sampler: TerrainSampler;
   chunks: ChunkManager;
@@ -165,6 +167,7 @@ export class Game {
     this.cleanup.push(() => visual.dispose());
 
     this.w = {
+      manifest,
       physics,
       sampler,
       chunks,
@@ -249,7 +252,10 @@ export class Game {
     w.player.step(move, w.cameraCtrl.yaw, dt);
     w.physics.step(dt);
     w.player.afterPhysics();
-    w.checkpoints.update(w.player.snapshot.feet);
+    const feet = w.player.snapshot.feet;
+    // Beyond the outer tiles there is no collider: treat it like a fatal fall.
+    if (isOutOfWorld(feet, w.manifest, cfg.terrain.outOfWorldDropM)) this.pendingRespawn = true;
+    else w.checkpoints.update(feet);
     if (this.pendingRespawn) {
       this.pendingRespawn = false;
       void this.respawn();
@@ -294,9 +300,13 @@ export class Game {
       this.respawning = false;
     }
     if (this.w !== w) return;
-    w.player.teleport(this.spawnPoint(w.sampler, camp));
-    w.cameraCtrl.snap();
-    this.events.emit('player:respawned', { checkpointId: camp.id, checkpointName: camp.name });
+    try {
+      w.player.teleport(this.spawnPoint(w.sampler, camp));
+      w.cameraCtrl.snap();
+      this.events.emit('player:respawned', { checkpointId: camp.id, checkpointName: camp.name });
+    } catch (err) {
+      this.fail(err);
+    }
   }
 
   private spawnPoint(sampler: TerrainSampler, camp: CampDef): Vec3 {
