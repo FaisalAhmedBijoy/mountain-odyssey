@@ -86,7 +86,10 @@ export class Game {
     );
     this.environment = new Environment(this.scene, true);
     this.loop = new GameLoop(
-      { step: (dt) => this.step(dt), render: (alpha, frameDt) => this.render(alpha, frameDt) },
+      {
+        step: (dt) => this.guard(() => this.step(dt)),
+        render: (alpha, frameDt) => this.guard(() => this.render(alpha, frameDt)),
+      },
       cfg.physics.stepHz,
       cfg.physics.maxStepsPerFrame,
     );
@@ -290,6 +293,7 @@ export class Game {
     } finally {
       this.respawning = false;
     }
+    if (this.w !== w) return;
     w.player.teleport(this.spawnPoint(w.sampler, camp));
     w.cameraCtrl.snap();
     this.events.emit('player:respawned', { checkpointId: camp.id, checkpointName: camp.name });
@@ -332,9 +336,20 @@ export class Game {
     this.o.publish({ paused });
   }
 
+  private guard(fn: () => void): void {
+    if (this.failed) return;
+    try {
+      fn();
+    } catch (err) {
+      this.fail(err);
+    }
+  }
+
   private fail(err: unknown): void {
     if (this.failed) return;
     this.failed = true;
+    this.loop.stop();
+    if (document.pointerLockElement === this.o.canvas) document.exitPointerLock();
     this.setPaused(true);
     this.o.publish({ status: 'error', error: err instanceof Error ? err.message : String(err) });
   }

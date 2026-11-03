@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "pree2e": "npm run terrain:test",
     "e2e": "playwright test",
     "terrain:test": "python3 tools/terrain/bake.py --synthetic --out public/terrain/test-peak",
     "terrain:mera": "python3 tools/terrain/bake.py --config tools/terrain/mera-peak.config.json --out public/terrain/mera-peak"
