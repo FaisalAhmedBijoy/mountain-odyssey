@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: 'e2e',
   timeout: 60_000,
+  reporter: process.env.CI ? [['html', { open: 'never' }], ['list']] : 'list',
   retries: process.env.CI ? 1 : 0,
   use: {
     baseURL: 'http://localhost:5173',

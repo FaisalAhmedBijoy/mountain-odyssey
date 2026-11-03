@@ -67,7 +67,7 @@ def bake_dem(config_path: str, out: str) -> dict:
     print(f"Upsampling to {spec.samples}x{spec.samples} at {spec.spacing_m} m ...", flush=True)
     h = upsample(coarse, spec.samples)
     h += detail_noise(spec.samples, spec.spacing_m, cfg["noiseSeed"])
-    summit = find_summit(h, spec.spacing_m, cfg.get("summitSearchRadiusM"))
+    summit = find_summit(h, spacing_m=spec.spacing_m, radius_m=cfg.get("summitSearchRadiusM"))
     camps = []
     for c in cfg["camps"]:
         rc = find_camp(h, spec.spacing_m, summit, c["bearingFromSummitDeg"], c["targetElevationM"])

@@ -135,7 +135,7 @@ def slope_deg(h: np.ndarray, spacing_m: float) -> np.ndarray:
     return np.degrees(np.arctan(np.hypot(gx, gz)))
 
 
-def find_summit(h: np.ndarray, spacing_m: float = 1.0, radius_m: float | None = None) -> tuple[int, int]:
+def find_summit(h: np.ndarray, *, spacing_m: float = 1.0, radius_m: float | None = None) -> tuple[int, int]:
     """Highest cell; with radius_m, only cells within that distance of the grid centre
     (so taller neighbouring peaks at the edge of the crop are ignored)."""
     if radius_m is None:

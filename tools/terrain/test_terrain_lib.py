@@ -94,6 +94,28 @@ def test_find_summit_returns_highest_cell():
     assert find_summit(_cone()) == (100, 100)
 
 
+def _two_peaks():
+    h = np.zeros((101, 101), dtype=np.float32)
+    h[50, 50] = 100.0  # central peak
+    h[5, 50] = 200.0  # taller peak 45 cells from the centre
+    return h
+
+
+def test_find_summit_without_radius_returns_taller_edge_peak():
+    assert find_summit(_two_peaks()) == (5, 50)
+
+
+def test_find_summit_with_radius_ignores_peaks_outside_it():
+    assert find_summit(_two_peaks(), spacing_m=1.0, radius_m=20.0) == (50, 50)
+    assert find_summit(_two_peaks(), spacing_m=1.0, radius_m=100.0) == (5, 50)
+
+
+def test_find_summit_radius_scales_with_spacing():
+    # Edge peak is 45 cells away: 45 m at 1 m spacing, 90 m at 2 m spacing.
+    assert find_summit(_two_peaks(), spacing_m=1.0, radius_m=60.0) == (5, 50)
+    assert find_summit(_two_peaks(), spacing_m=2.0, radius_m=60.0) == (50, 50)
+
+
 @pytest.mark.parametrize("bearing, expected_rc", [(0.0, (50, 100)), (90.0, (100, 150))])
 def test_find_camp_walks_downhill_along_bearing(bearing, expected_rc):
     h = _cone()

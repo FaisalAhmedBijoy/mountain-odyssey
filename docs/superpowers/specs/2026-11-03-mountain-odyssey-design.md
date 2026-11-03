@@ -390,6 +390,7 @@ Every asset and its licence is listed in `CREDITS.md`. Climbing hand placement u
 - Camera collision samples the terrain heightfield along the camera boom instead of using a physics sphere-cast.
 - M1 uses the CC0 "RobotExpressive" model as a placeholder character; it has no climbing animation.
 - Baked terrain is generated, not committed (`public/terrain/` is git-ignored). CI bakes and tests a small synthetic `test-peak`.
+- The Mera bake restricts the summit search to `summitSearchRadiusM` (1500 m) around the crop centre because a taller neighbouring peak sits at the crop edge, and camp bearings were tuned (Khare 350°, High Camp 20°) so camp elevations fall in range.
 
 ---
 
