@@ -31,15 +31,21 @@ const manifest: TerrainManifest = {
 let physics: PhysicsWorld | null = null;
 afterEach(() => physics?.dispose());
 
-async function setup(spawn: Vec3) {
+const cliffHeight = (z: number) => (z <= -11 ? 108 : 100);
+
+async function setup(
+  spawn: Vec3,
+  heightAtZ: (z: number) => number = cliffHeight,
+  m: TerrainManifest = manifest,
+) {
   const heights = new Float32Array(65 * 65);
   for (let r = 0; r < 65; r++) {
-    for (let c = 0; c < 65; c++) heights[r * 65 + c] = -32 + r <= -11 ? 108 : 100;
+    for (let c = 0; c < 65; c++) heights[r * 65 + c] = heightAtZ(-32 + r);
   }
   const tile = { tx: 0, tz: 0, heights };
   physics = await PhysicsWorld.create(-9.81);
-  physics.addTerrainTile(tile, manifest);
-  const sampler = new TerrainSampler(manifest);
+  physics.addTerrainTile(tile, m);
+  const sampler = new TerrainSampler(m);
   sampler.setTile(tile);
   const events = new EventBus<GameEvents>();
   const fell: GameEvents['player:fell'][] = [];
@@ -120,5 +126,35 @@ describe('Player', () => {
     expect(s.feet).toEqual({ x: 5, y: 100.05, z: 5 });
     expect(s.state).toBe('walk');
     expect(s.stamina).toEqual({ value: 100, cap: 100 });
+  });
+
+  it('down-climbs a 55 degree face without being ejected, then walks off at the bottom', async () => {
+    // Flat 100 m for z >= -5, then a face rising 1.43 m per metre up to z = -15.
+    const face = (z: number) => (z >= -5 ? 100 : z <= -15 ? 114.3 : 100 + 1.43 * (-5 - z));
+    const { player, run } = await setup({ x: 0, y: 100.05, z: -4.5 }, face);
+    run({}, 10);
+    run({ grab: true }, 1);
+    expect(player.snapshot.state).toBe('climb');
+    run({ forward: 1 }, 300);
+    const high = player.snapshot.feet.y;
+    expect(player.snapshot.state).toBe('climb');
+    expect(high).toBeGreaterThan(101.5);
+    run({ forward: -1 }, 60);
+    expect(player.snapshot.state).toBe('climb');
+    expect(player.snapshot.feet.y).toBeLessThan(high - 0.3);
+    run({ forward: -1 }, 1200);
+    expect(player.snapshot.state).toBe('walk');
+    expect(player.snapshot.feet.y).toBeCloseTo(100, 0);
+  });
+
+  it('does not count sliding down a 35 degree slope as a damaging fall', async () => {
+    const slope = (z: number) => (z <= -25 ? 135 : z >= 25 ? 100 : 100 + 0.7 * (25 - z));
+    const tall = { ...manifest, maxHeightM: 140 };
+    const { player, run, fell } = await setup({ x: 0, y: 131.55, z: -20 }, slope, tall);
+    run({}, 10);
+    expect(player.snapshot.state).toBe('slide');
+    run({}, 900);
+    expect(player.snapshot.feet.y).toBeLessThan(110);
+    expect(fell.filter((e) => e.outcome !== 'none')).toEqual([]);
   });
 });

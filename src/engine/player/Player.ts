@@ -60,6 +60,8 @@ export class Player {
   private facing: Vec3 = vec3(0, 0, -1);
   private wallNormal: Vec3 | null = null;
   private fallPeakY = 0;
+  /** True once an airborne or steep-slide drop has been recorded this fall. */
+  private fallArmed = false;
   private moving = false;
   private prompt: string | null = null;
   private prevCenter: Vec3;
@@ -81,7 +83,7 @@ export class Player {
       R.ColliderDesc.capsule(cfg.player.capsuleHalfHeight, cfg.player.capsuleRadius),
       this.body,
     );
-    this.controller = physics.world.createCharacterController(0.02);
+    this.controller = physics.world.createCharacterController(cfg.player.controllerOffsetM);
     this.controller.setApplyImpulsesToDynamicBodies(false);
     this.setClimbMode(false);
     this.prevCenter = c;
@@ -109,13 +111,22 @@ export class Player {
     const center = this.currCenter;
     const prev = this.state;
     this.moving = isMoving(input);
-    if (UNCONTROLLED.has(prev)) this.fallPeakY = Math.max(this.fallPeakY, center.y);
+    // Falls count airborne drops plus slides on steep ground; gentle slides do not.
+    if (prev === 'fall' || (prev === 'slide' && this.isSteepSlide(center))) {
+      this.fallPeakY = Math.max(this.fallPeakY, center.y);
+      this.fallArmed = true;
+    } else if (prev === 'slide' && !this.fallArmed) {
+      this.fallPeakY = center.y;
+    }
 
     const dir = this.moveDirection(input, cameraYaw);
     if (prev !== 'climb' && this.moving) this.facing = dir;
 
     const wall = this.senseWall(center, prev);
-    const grounded = prev === 'climb' ? this.feetNearGround(center) : this.grounded;
+    const grounded =
+      prev === 'climb'
+        ? this.feetNearGround(center) && this.localSlopeDeg(center) < cfg.movement.maxWalkSlopeDeg
+        : this.grounded;
     const groundSlopeDeg = grounded ? this.localSlopeDeg(center) : 0;
     const next = nextMoveState(
       prev,
@@ -127,7 +138,15 @@ export class Player {
     let mantle: Vec3 | null = null;
     if (prev !== next) {
       if (UNCONTROLLED.has(prev) && (next === 'walk' || next === 'run')) this.land(center.y);
-      if (!UNCONTROLLED.has(prev) && UNCONTROLLED.has(next)) this.fallPeakY = center.y;
+      if (prev === 'fall' && next === 'slide') {
+        // Landing onto sliding ground ends the airborne fall; the slide starts fresh.
+        this.land(center.y);
+        this.fallPeakY = center.y;
+      }
+      if (!UNCONTROLLED.has(prev) && UNCONTROLLED.has(next)) {
+        this.fallPeakY = center.y;
+        this.fallArmed = false;
+      }
       if (next === 'climb') {
         this.setClimbMode(true);
         this.velocity = vec3();
@@ -185,6 +204,7 @@ export class Player {
     this.state = 'walk';
     this.grounded = false;
     this.wallNormal = null;
+    this.fallArmed = false;
     this.setClimbMode(false);
     this.stamina = fullStamina(cfg.stamina);
   }
@@ -214,9 +234,13 @@ export class Player {
     return radToDeg(Math.atan(Math.hypot(r - l, s - n) / (2 * e)));
   }
 
+  private isSteepSlide(center: Vec3): boolean {
+    return this.localSlopeDeg(center) >= cfg.movement.minClimbSlopeDeg;
+  }
+
   private feetNearGround(center: Vec3): boolean {
     const ground = this.sampler.heightAt(center.x, center.z);
-    return ground !== null && center.y - this.centerOffset - ground < 0.15;
+    return ground !== null && center.y - this.centerOffset - ground < cfg.player.feetNearGroundM;
   }
 
   private setClimbMode(climbing: boolean): void {
@@ -229,8 +253,8 @@ export class Player {
     } else {
       c.setMaxSlopeClimbAngle(degToRad(cfg.movement.maxWalkSlopeDeg));
       c.setMinSlopeSlideAngle(degToRad(cfg.movement.maxWalkSlopeDeg));
-      c.enableSnapToGround(0.3);
-      c.enableAutostep(0.35, 0.2, false);
+      c.enableSnapToGround(cfg.player.snapToGroundM);
+      c.enableAutostep(cfg.player.autostepHeightM, cfg.player.autostepMinWidthM, false);
     }
   }
 
@@ -270,7 +294,7 @@ export class Player {
     if (direct) return direct;
     const side = normalize(cross(dir, UP));
     if (length(side) === 0) return null;
-    for (const offset of [0.013, -0.013]) {
+    for (const offset of [cfg.movement.wallRayRetryOffsetM, -cfg.movement.wallRayRetryOffsetM]) {
       const hit = this.physics.castRay(add(center, scale(side, offset)), dir, reach, this.collider);
       if (hit) return hit;
     }
@@ -290,7 +314,7 @@ export class Player {
           this.velocity.y = m.jumpVelocity;
           this.controller.disableSnapToGround();
         } else if (this.grounded) {
-          this.velocity.y = -1;
+          this.velocity.y = m.groundedStickVelocity;
         } else {
           this.velocity.y += g * dt;
         }
@@ -321,8 +345,17 @@ export class Player {
     const up = normalize(cross(n, right));
     let t = add(scale(right, input.right), scale(up, input.forward));
     if (length(t) > 0) t = scale(normalize(t), cfg.movement.climbSpeed * dt);
-    const hold = cfg.player.capsuleRadius + cfg.movement.climbHoldGapM;
-    const correction = clamp(wall.distance - hold, -0.05, 0.05);
+    // On leaning faces the capsule's lower (or, on overhangs, upper) cap touches
+    // before its centre does, so the hold distance grows with the lean.
+    const hold =
+      cfg.player.capsuleRadius +
+      cfg.player.capsuleHalfHeight * Math.abs(n.y) +
+      cfg.movement.climbHoldGapM;
+    const correction = clamp(
+      wall.distance - hold,
+      -cfg.movement.wallCorrectionMaxM,
+      cfg.movement.wallCorrectionMaxM,
+    );
     this.velocity = vec3();
     return add(t, scale(n, -correction));
   }
@@ -332,11 +365,13 @@ export class Player {
     const ground = this.sampler.heightAt(p.x, p.z);
     if (ground === null) return null;
     const feet = center.y - this.centerOffset;
-    if (ground > feet + cfg.movement.mantleMaxRiseM || ground < feet - 1) return null;
-    return { x: p.x, y: ground + this.centerOffset + 0.02, z: p.z };
+    if (ground > feet + cfg.movement.mantleMaxRiseM || ground < feet - cfg.movement.mantleMaxDropM)
+      return null;
+    return { x: p.x, y: ground + this.centerOffset + cfg.movement.mantleLiftM, z: p.z };
   }
 
   private land(centerY: number): void {
+    this.fallArmed = false;
     const dropM = this.fallPeakY - centerY;
     const outcome = classifyFall(dropM, cfg.fall);
     if (outcome === 'injury') {

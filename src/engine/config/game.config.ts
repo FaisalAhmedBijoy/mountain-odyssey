@@ -1,7 +1,17 @@
 /** Every tunable gameplay number (spec §5). Change values here, not in systems. */
 export const GAME_CONFIG = {
   physics: { stepHz: 60, maxStepsPerFrame: 5, gravity: -9.81 },
-  player: { capsuleHalfHeight: 0.55, capsuleRadius: 0.3, heightM: 1.7, eyeHeight: 1.5 },
+  player: {
+    capsuleHalfHeight: 0.55,
+    capsuleRadius: 0.3,
+    heightM: 1.7,
+    eyeHeight: 1.5,
+    controllerOffsetM: 0.02,
+    snapToGroundM: 0.3,
+    autostepHeightM: 0.35,
+    autostepMinWidthM: 0.2,
+    feetNearGroundM: 0.15,
+  },
   movement: {
     walkSpeed: 1.4,
     runSpeed: 3.5,
@@ -16,6 +26,11 @@ export const GAME_CONFIG = {
     climbHoldGapM: 0.1,
     mantleForwardM: 0.6,
     mantleMaxRiseM: 1.9,
+    mantleMaxDropM: 1,
+    mantleLiftM: 0.02,
+    wallCorrectionMaxM: 0.05,
+    wallRayRetryOffsetM: 0.013,
+    groundedStickVelocity: -1,
     maxFallSpeed: 50,
     maxSlideSpeed: 15,
   },
