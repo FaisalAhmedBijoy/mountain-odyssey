@@ -1,0 +1,124 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { EventBus } from '../core/EventBus';
+import type { GameEvents } from '../core/events';
+import type { Vec3 } from '../core/math';
+import { PhysicsWorld } from '../physics/PhysicsWorld';
+import { NO_GEAR } from '../world/surface';
+import type { TerrainManifest } from '../world/terrainData';
+import { TerrainSampler } from '../world/TerrainSampler';
+import { NO_INPUT, type MoveInput } from './movementState';
+import { Player } from './Player';
+
+const DT = 1 / 60;
+
+// One 64 x 64 m tile centred on the origin: flat at 100 m south of z = -10,
+// an 8 m cliff between z = -11 and z = -10, and a plateau at 108 m to the north.
+const manifest: TerrainManifest = {
+  id: 'cliff',
+  spacingM: 1,
+  tileSamples: 65,
+  tilesX: 1,
+  tilesZ: 1,
+  originX: -32,
+  originZ: -32,
+  minHeightM: 90,
+  maxHeightM: 120,
+  backdrop: { file: 'backdrop.u16', samples: 2, spacingM: 64 },
+  camps: [],
+  attribution: '',
+};
+
+let physics: PhysicsWorld | null = null;
+afterEach(() => physics?.dispose());
+
+async function setup(spawn: Vec3) {
+  const heights = new Float32Array(65 * 65);
+  for (let r = 0; r < 65; r++) {
+    for (let c = 0; c < 65; c++) heights[r * 65 + c] = -32 + r <= -11 ? 108 : 100;
+  }
+  const tile = { tx: 0, tz: 0, heights };
+  physics = await PhysicsWorld.create(-9.81);
+  physics.addTerrainTile(tile, manifest);
+  const sampler = new TerrainSampler(manifest);
+  sampler.setTile(tile);
+  const events = new EventBus<GameEvents>();
+  const fell: GameEvents['player:fell'][] = [];
+  events.on('player:fell', (e) => fell.push(e));
+  const player = new Player(physics, sampler, events, spawn, NO_GEAR);
+  physics.step(DT);
+  player.afterPhysics();
+  const p = physics;
+  const run = (input: Partial<MoveInput>, steps: number) => {
+    for (let i = 0; i < steps; i++) {
+      player.step({ ...NO_INPUT, ...input }, 0, DT);
+      p.step(DT);
+      player.afterPhysics();
+    }
+  };
+  return { player, run, fell };
+}
+
+describe('Player', () => {
+  it('walks forward (toward -Z) at walking speed', async () => {
+    const { player, run } = await setup({ x: 0, y: 100.05, z: 0 });
+    run({ forward: 1 }, 60);
+    const s = player.snapshot;
+    expect(s.state).toBe('walk');
+    expect(s.grounded).toBe(true);
+    expect(s.feet.z).toBeLessThan(-1.1);
+    expect(s.feet.z).toBeGreaterThan(-1.6);
+    expect(s.feet.y).toBeCloseTo(100, 1);
+  });
+
+  it('drains stamina while running', async () => {
+    const { player, run } = await setup({ x: 0, y: 100.05, z: 0 });
+    run({}, 10);
+    run({ forward: 1, run: true }, 60);
+    expect(player.snapshot.state).toBe('run');
+    expect(player.snapshot.stamina.value).toBeCloseTo(92, 0);
+  });
+
+  it('offers a grab at the cliff, climbs it and mantles onto the plateau', async () => {
+    const { player, run } = await setup({ x: 0, y: 100.05, z: -9 });
+    run({}, 10);
+    expect(player.snapshot.prompt).toBe('E — Grab');
+    run({ grab: true }, 1);
+    expect(player.snapshot.state).toBe('climb');
+    run({ forward: 1 }, 1080);
+    const s = player.snapshot;
+    expect(s.state).toBe('walk');
+    expect(s.feet.y).toBeCloseTo(108, 0);
+    expect(s.feet.z).toBeLessThan(-10.5);
+    expect(s.stamina.value).toBeGreaterThan(0);
+  });
+
+  it('lets go of the wall with Space', async () => {
+    const { player, run } = await setup({ x: 0, y: 100.05, z: -9 });
+    run({}, 10);
+    run({ grab: true }, 1);
+    run({ forward: 1 }, 120);
+    run({ jump: true }, 1);
+    expect(player.snapshot.state).toBe('fall');
+  });
+
+  it('reports an injury after falling off the 8 m cliff', async () => {
+    const { player, run, fell } = await setup({ x: 0, y: 108.05, z: -14 });
+    run({}, 10);
+    run({ forward: -1 }, 240);
+    expect(fell).toHaveLength(1);
+    expect(fell[0]!.outcome).toBe('injury');
+    expect(fell[0]!.dropM).toBeGreaterThan(6);
+    expect(fell[0]!.dropM).toBeLessThan(9);
+    expect(player.snapshot.stamina.cap).toBe(70);
+  });
+
+  it('teleport resets position, state and stamina', async () => {
+    const { player, run } = await setup({ x: 0, y: 100.05, z: 0 });
+    run({ forward: 1, run: true }, 60);
+    player.teleport({ x: 5, y: 100.05, z: 5 });
+    const s = player.snapshot;
+    expect(s.feet).toEqual({ x: 5, y: 100.05, z: 5 });
+    expect(s.state).toBe('walk');
+    expect(s.stamina).toEqual({ value: 100, cap: 100 });
+  });
+});
