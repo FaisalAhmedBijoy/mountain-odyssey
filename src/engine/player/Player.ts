@@ -60,7 +60,7 @@ export class Player {
   private facing: Vec3 = vec3(0, 0, -1);
   private wallNormal: Vec3 | null = null;
   private fallPeakY = 0;
-  /** True once an airborne or steep-slide drop has been recorded this fall. */
+  /** True while an airborne or steep-slide segment awaits scoring. */
   private fallArmed = false;
   private moving = false;
   private prompt: string | null = null;
@@ -115,7 +115,10 @@ export class Player {
     if (prev === 'fall' || (prev === 'slide' && this.isSteepSlide(center))) {
       this.fallPeakY = Math.max(this.fallPeakY, center.y);
       this.fallArmed = true;
-    } else if (prev === 'slide' && !this.fallArmed) {
+    } else if (prev === 'slide') {
+      // Descent turned into a gentle slide: score the airborne/steep segment, then
+      // keep resetting while the slide stays gentle.
+      if (this.fallArmed) this.land(center.y);
       this.fallPeakY = center.y;
     }
 
@@ -138,11 +141,6 @@ export class Player {
     let mantle: Vec3 | null = null;
     if (prev !== next) {
       if (UNCONTROLLED.has(prev) && (next === 'walk' || next === 'run')) this.land(center.y);
-      if (prev === 'fall' && next === 'slide') {
-        // Landing onto sliding ground ends the airborne fall; the slide starts fresh.
-        this.land(center.y);
-        this.fallPeakY = center.y;
-      }
       if (!UNCONTROLLED.has(prev) && UNCONTROLLED.has(next)) {
         this.fallPeakY = center.y;
         this.fallArmed = false;

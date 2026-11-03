@@ -31,6 +31,7 @@ const manifest: TerrainManifest = {
 let physics: PhysicsWorld | null = null;
 afterEach(() => physics?.dispose());
 
+const tallManifest: TerrainManifest = { ...manifest, maxHeightM: 140 };
 const cliffHeight = (z: number) => (z <= -11 ? 108 : 100);
 
 async function setup(
@@ -156,5 +157,35 @@ describe('Player', () => {
     run({}, 900);
     expect(player.snapshot.feet.y).toBeLessThan(110);
     expect(fell.filter((e) => e.outcome !== 'none')).toEqual([]);
+  });
+
+  it('scores a slide down a 60 degree face as one injury', async () => {
+    const face = (z: number) => Math.max(100, 110 - 1.732 * (z + 10 > 0 ? z + 10 : 0));
+    const { run, fell } = await setup({ x: 0, y: 109.2, z: -9.5 }, face, tallManifest);
+    run({}, 600);
+    expect(fell).toHaveLength(1);
+    expect(fell[0]!.outcome).toBe('injury');
+    expect(fell[0]!.dropM).toBeGreaterThan(6);
+    expect(fell[0]!.dropM).toBeLessThan(15);
+  });
+
+  it('combines an airborne drop with the steep slide it lands on', async () => {
+    // 4 m of air onto a 60 degree face that drops 3.5 m more: neither part reaches 6 m.
+    const face = (z: number) => Math.max(103, 110 - 1.732 * (z + 10 > 0 ? z + 10 : 0));
+    const { run, fell } = await setup({ x: 0, y: 110.5, z: -8 }, face, tallManifest);
+    run({}, 600);
+    expect(fell).toHaveLength(1);
+    expect(fell[0]!.outcome).toBe('injury');
+    expect(fell[0]!.dropM).toBeGreaterThan(6);
+  });
+
+  it('does not score a long gentle runout below a short steep lip', async () => {
+    const z1 = -25 + 3 / 1.732;
+    const lip = (z: number) =>
+      z <= -25 ? 130 : z <= z1 ? 130 - 1.732 * (z + 25) : Math.max(100, 127 - 0.7 * (z - z1));
+    const { player, run, fell } = await setup({ x: 0, y: 130.05, z: -24.8 }, lip, tallManifest);
+    run({}, 1500);
+    expect(player.snapshot.feet.y).toBeLessThan(110);
+    expect(fell.filter((e) => e.outcome === 'injury' || e.outcome === 'fatal')).toEqual([]);
   });
 });
