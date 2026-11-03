@@ -8,15 +8,16 @@
   "coarseSpacingM": 8,
   "backdropSpacingM": 64,
   "noiseSeed": 6476,
+  "summitSearchRadiusM": 1500,
   "demUrl": "/vsicurl/https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N27_00_E086_00_DEM/Copernicus_DSM_COG_10_N27_00_E086_00_DEM.tif",
   "attribution": "Contains modified Copernicus DEM data",
   "camps": [
-    { "id": "khare", "name": "Khare", "targetElevationM": 5000, "bearingFromSummitDeg": 330 },
+    { "id": "khare", "name": "Khare", "targetElevationM": 5000, "bearingFromSummitDeg": 350 },
     {
       "id": "high-camp",
       "name": "High Camp",
       "targetElevationM": 5800,
-      "bearingFromSummitDeg": 340
+      "bearingFromSummitDeg": 20
     }
   ]
 }

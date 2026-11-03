@@ -90,7 +90,7 @@ def resample_to_metric(
 def upsample(h: np.ndarray, out_samples: int) -> np.ndarray:
     img = Image.fromarray(np.ascontiguousarray(h, dtype=np.float32))
     resized = img.resize((out_samples, out_samples), Image.Resampling.BICUBIC)
-    return np.asarray(resized, dtype=np.float32)
+    return np.array(resized, dtype=np.float32)
 
 
 def detail_noise(
@@ -135,8 +135,16 @@ def slope_deg(h: np.ndarray, spacing_m: float) -> np.ndarray:
     return np.degrees(np.arctan(np.hypot(gx, gz)))
 
 
-def find_summit(h: np.ndarray) -> tuple[int, int]:
-    r, c = np.unravel_index(int(np.argmax(h)), h.shape)
+def find_summit(h: np.ndarray, spacing_m: float = 1.0, radius_m: float | None = None) -> tuple[int, int]:
+    """Highest cell; with radius_m, only cells within that distance of the grid centre
+    (so taller neighbouring peaks at the edge of the crop are ignored)."""
+    if radius_m is None:
+        r, c = np.unravel_index(int(np.argmax(h)), h.shape)
+        return int(r), int(c)
+    mid = (h.shape[0] - 1) / 2.0
+    rr, cc = np.mgrid[0 : h.shape[0], 0 : h.shape[1]]
+    masked = np.where(np.hypot(rr - mid, cc - mid) * spacing_m <= radius_m, h, -np.inf)
+    r, c = np.unravel_index(int(np.argmax(masked)), h.shape)
     return int(r), int(c)
 
 
