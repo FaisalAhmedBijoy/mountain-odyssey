@@ -69,14 +69,18 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
     positions[o] = x;
     positions[o + 1] = y + yOffset;
     positions[o + 2] = z;
-    const gx = sample(sx - step, sz) - sample(sx + step, sz);
-    const gz = sample(sx, sz - step) - sample(sx, sz + step);
-    const gy = 2 * step * spacingM;
-    const len = Math.hypot(gx, gy, gz);
+    // Neighbours are clamped at the border, so divide by the real distance between them.
+    const xl = Math.max(sx - step, 0);
+    const xr = Math.min(sx + step, samplesX - 1);
+    const zn = Math.max(sz - step, 0);
+    const zs = Math.min(sz + step, samplesZ - 1);
+    const gx = (sample(xl, sz) - sample(xr, sz)) / ((xr - xl) * spacingM);
+    const gz = (sample(sx, zn) - sample(sx, zs)) / ((zs - zn) * spacingM);
+    const len = Math.hypot(gx, 1, gz);
     normals[o] = gx / len;
-    normals[o + 1] = gy / len;
+    normals[o + 1] = 1 / len;
     normals[o + 2] = gz / len;
-    const slopeDeg = (Math.acos(gy / len) * 180) / Math.PI;
+    const slopeDeg = (Math.acos(1 / len) * 180) / Math.PI;
     const c = LINEAR_COLORS[surfaceAt(slopeDeg, y, a.surface)];
     const shade = 0.9 + 0.1 * hash2(x, z);
     colors[o] = c[0] * shade;
@@ -120,7 +124,10 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
       Array.from({ length: nz }, (_, iz) => iz * nx),
       Array.from({ length: nz }, (_, iz) => iz * nx + nx - 1),
     ];
-    for (const edge of edges) {
+    // Edges 0 (north) and 1 (south) run along +x; 2 (west) and 3 (east) along +z.
+    // North and east need the opposite winding for their faces to point outward.
+    const flip = [true, false, false, true];
+    for (const [e, edge] of edges.entries()) {
       const first = v;
       for (const top of edge) {
         writeVertex(v++, (top % nx) * step, Math.floor(top / nx) * step, -skirtDepthM);
@@ -130,12 +137,21 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
         const t1 = edge[i + 1];
         const s0 = first + i;
         const s1 = first + i + 1;
-        indices[k++] = t0;
-        indices[k++] = s0;
-        indices[k++] = t1;
-        indices[k++] = t1;
-        indices[k++] = s0;
-        indices[k++] = s1;
+        if (flip[e]) {
+          indices[k++] = t0;
+          indices[k++] = t1;
+          indices[k++] = s0;
+          indices[k++] = t1;
+          indices[k++] = s1;
+          indices[k++] = s0;
+        } else {
+          indices[k++] = t0;
+          indices[k++] = s0;
+          indices[k++] = t1;
+          indices[k++] = t1;
+          indices[k++] = s0;
+          indices[k++] = s1;
+        }
       }
     }
   }

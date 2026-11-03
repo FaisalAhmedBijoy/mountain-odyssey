@@ -52,6 +52,33 @@ describe('buildGridGeometry', () => {
     expect(e1[1] * e2[0] - e1[0] * e2[1]).toBeGreaterThan(0);
   });
 
+  it('winds every skirt face outward', () => {
+    const g = buildGridGeometry(args());
+    const p = (i: number) => [g.positions[i * 3], g.positions[i * 3 + 1], g.positions[i * 3 + 2]];
+    expect(g.indices.length).toBe(192);
+    for (let k = 96; k < g.indices.length; k += 3) {
+      const [a, b, c] = [p(g.indices[k]), p(g.indices[k + 1]), p(g.indices[k + 2])];
+      const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      const e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      const nrmX = e1[1] * e2[2] - e1[2] * e2[1];
+      const nrmZ = e1[0] * e2[1] - e1[1] * e2[0];
+      const cx = (a[0] + b[0] + c[0]) / 3;
+      const cz = (a[2] + b[2] + c[2]) / 3;
+      expect(nrmX * (cx - 104) + nrmZ * (cz - 204)).toBeGreaterThan(0);
+    }
+  });
+
+  it('gives edge vertices the same slope as interior vertices', () => {
+    const heights = new Float32Array(25).map((_, i) => 5000 + (i % 5));
+    const g = buildGridGeometry(args({ heights, skirtDepthM: 0 }));
+    const len = Math.hypot(0.5, 1);
+    for (const v of [0, 2, 12]) {
+      expect(g.normals[v * 3]).toBeCloseTo(-0.5 / len, 5);
+      expect(g.normals[v * 3 + 1]).toBeCloseTo(1 / len, 5);
+      expect(g.normals[v * 3 + 2]).toBeCloseTo(0, 5);
+    }
+  });
+
   it('skips cells inside the hole', () => {
     const g = buildGridGeometry(
       args({ skirtDepthM: 0, hole: { minX: 100, minZ: 200, maxX: 108, maxZ: 208 } }),
