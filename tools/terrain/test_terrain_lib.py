@@ -1,4 +1,6 @@
 import json
+import os
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -290,3 +292,20 @@ def test_written_tile_decodes_back_to_heights(tmp_path):
     np.testing.assert_allclose(decode(tmp_path / "tiles" / "1_0.u16"), h[0:5, 4:9], atol=tol)
     # backdrop is every 2nd sample of the 9x9 grid
     np.testing.assert_allclose(decode(tmp_path / "backdrop.u16"), h[::2, ::2], atol=tol)
+
+
+FIXTURE_DIR = Path(__file__).resolve().parents[2] / "src/engine/world/__fixtures__/test-peak-mini"
+
+
+def test_contract_fixture_matches_current_bake(tmp_path):
+    """The committed low-res test-peak that the TypeScript contract test
+    (src/engine/world/terrainContract.test.ts) reads must match what the bake writes
+    today. Regenerate with UPDATE_FIXTURES=1."""
+    from bake import bake_synthetic
+
+    spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=16, spacing_m=64.0)
+    out = FIXTURE_DIR if os.environ.get("UPDATE_FIXTURES") == "1" else tmp_path
+    manifest = bake_synthetic(str(out), spec, backdrop_spacing_m=128.0, validate=False)
+    assert json.loads((FIXTURE_DIR / "manifest.json").read_text()) == manifest
+    for name in ["backdrop.u16", *(f"tiles/{tx}_{tz}.u16" for tx in range(2) for tz in range(2))]:
+        assert (FIXTURE_DIR / name).read_bytes() == (out / name).read_bytes(), name

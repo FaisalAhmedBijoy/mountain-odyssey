@@ -19,7 +19,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/engine/**/*.ts'],
+    files: ['src/engine/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',

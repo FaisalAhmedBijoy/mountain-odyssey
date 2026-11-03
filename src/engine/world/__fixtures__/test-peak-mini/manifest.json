@@ -1,0 +1,29 @@
+{
+  "id": "test-peak",
+  "spacingM": 64.0,
+  "tileSamples": 17,
+  "tilesX": 2,
+  "tilesZ": 2,
+  "originX": -1024.0,
+  "originZ": -1024.0,
+  "minHeightM": 4999.0,
+  "maxHeightM": 5249.0,
+  "backdrop": {
+    "file": "backdrop.u16",
+    "samples": 17,
+    "spacingM": 128.0
+  },
+  "camps": [
+    {
+      "id": "khare",
+      "name": "Khare",
+      "position": [0.0, 5000.0, 768.0]
+    },
+    {
+      "id": "high-camp",
+      "name": "High Camp",
+      "position": [0.0, 5248.0, 0.0]
+    }
+  ],
+  "attribution": "Synthetic test terrain"
+}

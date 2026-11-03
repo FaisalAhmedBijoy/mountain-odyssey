@@ -10,6 +10,9 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 ## Movement
 - [ ] Walk, run, jump and land feel responsive; no sliding on flat ground.
 - [ ] Slopes ≥ 30° make the character slide.
+- [ ] Khare spawn is on walkable ground (no slide on spawn).
+- [ ] High Camp is reachable on foot from Khare without climbing more than one stamina bar.
+- [ ] Snowline colour change is visible above ~5,300 m.
 - [ ] Running stops when stamina hits zero; stamina recovers while walking.
 
 ## Climbing

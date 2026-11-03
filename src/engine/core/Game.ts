@@ -342,7 +342,8 @@ export class Game {
 
   private setPaused(paused: boolean): void {
     this.loop.setPaused(paused);
-    if (paused) this.input.reset();
+    // Also reset on resume so keys pressed while paused do not fire.
+    this.input.reset();
     this.o.publish({ paused });
   }
 
