@@ -1,0 +1,11 @@
+{
+  "id": "mera-peak",
+  "facts": {
+    "name": "Mera Peak",
+    "country": "NP",
+    "elevationM": 6476,
+    "location": { "lat": 27.7, "lon": 86.87 },
+    "sources": ["Copernicus GLO-30 DEM"]
+  },
+  "terrainBaseUrl": "/terrain/mera-peak"
+}

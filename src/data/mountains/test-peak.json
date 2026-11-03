@@ -1,0 +1,11 @@
+{
+  "id": "test-peak",
+  "facts": {
+    "name": "Test Peak",
+    "country": "XX",
+    "elevationM": 5248,
+    "location": { "lat": 0, "lon": 0 },
+    "sources": ["Synthetic"]
+  },
+  "terrainBaseUrl": "/terrain/test-peak"
+}
