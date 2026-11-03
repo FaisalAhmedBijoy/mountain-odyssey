@@ -9,15 +9,20 @@ from terrain_lib import (
     cell_to_world,
     detail_noise,
     downsample,
-    find_camp,
+    CampPlacementError,
     find_summit,
+    label_components,
     latlon_bounds,
+    place_camps,
     quantize,
     resample_to_metric,
     slope_deg,
+    spawn_is_walkable,
     split_tiles,
     synthetic_heightmap,
     upsample,
+    validate_camps,
+    walkable_map,
     write_terrain,
 )
 
@@ -116,12 +121,114 @@ def test_find_summit_radius_scales_with_spacing():
     assert find_summit(_two_peaks(), spacing_m=2.0, radius_m=60.0) == (50, 50)
 
 
+def test_label_components_separates_blobs_with_4_connectivity():
+    mask = np.array(
+        [
+            [1, 1, 0, 0],
+            [0, 1, 0, 1],
+            [0, 0, 1, 1],
+            [1, 0, 0, 0],
+        ],
+        dtype=bool,
+    )
+    labels, sizes = label_components(mask)
+    assert labels[0, 0] == labels[0, 1] == labels[1, 1] != 0
+    assert labels[1, 3] == labels[2, 2] == labels[2, 3] != 0
+    assert labels[3, 0] != 0
+    assert len({labels[0, 0], labels[1, 3], labels[3, 0]}) == 3
+    assert (labels[~mask] == 0).all()
+    assert sorted(sizes[1:].tolist()) == [1, 3, 3]
+
+
+def _plateaus(gap: str, n: int = 201, spacing: float = 2.0) -> np.ndarray:
+    """Low plateau (1000 m) in the west, high plateau (1100 m) in the east, joined in
+    the middle either by a ~14 degree ramp or by a vertical cliff."""
+    x = np.arange(n) * spacing
+    width = 400.0 if gap == "ramp" else 2.0
+    mid = (x[-1] - x[0]) / 2.0
+    profile = 1000.0 + 100.0 * np.clip((x - (mid - width / 2.0)) / width, 0.0, 1.0)
+    return np.tile(profile.astype(np.float32), (n, 1))
+
+
+CAMPS = [
+    {"id": "low", "targetElevationM": 1000.0},
+    {"id": "high", "targetElevationM": 1100.0},
+]
+
+
+def test_place_camps_on_plateaus_joined_by_ramp_validates():
+    h = _plateaus("ramp", n=401)
+    rcs = place_camps(h, 2.0, (200, 400), CAMPS, tolerance_m=10.0)
+    assert len(rcs) == 2
+    assert abs(h[rcs[0]] - 1000.0) <= 1.0
+    assert abs(h[rcs[1]] - 1100.0) <= 1.0
+    validate_camps(h, 2.0, list(zip(["low", "high"], rcs)))
+
+
+def test_validate_camps_fails_when_camps_are_split_by_a_cliff():
+    h = _plateaus("cliff")
+    low, high = (100, 20), (100, 180)
+    with pytest.raises(CampPlacementError, match="low.*high.*not connected"):
+        validate_camps(h, 2.0, [("low", low), ("high", high)])
+
+
+def test_place_camps_fails_when_no_walkable_component_spans_all_targets():
+    with pytest.raises(CampPlacementError, match="no walkable component"):
+        place_camps(_plateaus("cliff"), 2.0, (100, 180), CAMPS, tolerance_m=10.0)
+
+
+def _flat_with_spike(n: int = 101, spacing: float = 2.0) -> np.ndarray:
+    """Flat 1000 m plain with a 45 degree spike 8 m tall at the centre."""
+    c = (n - 1) / 2
+    r, col = np.mgrid[0:n, 0:n]
+    d = np.hypot(r - c, col - c) * spacing
+    return (1000.0 + np.clip(8.0 - d, 0.0, None)).astype(np.float32)
+
+
+def test_spawn_on_steep_neighbourhood_is_rejected():
+    h = _flat_with_spike()
+    assert not spawn_is_walkable(h, 2.0, (50, 52), radius_m=6.0, max_slope_deg=30.0)
+    assert spawn_is_walkable(h, 2.0, (50, 80), radius_m=6.0, max_slope_deg=30.0)
+    with pytest.raises(CampPlacementError, match="spike.*steep"):
+        validate_camps(h, 2.0, [("flat", (50, 80)), ("spike", (50, 52))])
+
+
+def test_place_camps_skips_steep_spawn_candidates():
+    h = _flat_with_spike()
+    (rc,) = place_camps(h, 2.0, (50, 50), [{"id": "a", "targetElevationM": 1004.0}], tolerance_m=10.0)
+    assert spawn_is_walkable(h, 2.0, rc, radius_m=6.0, max_slope_deg=30.0)
+
+
 @pytest.mark.parametrize("bearing, expected_rc", [(0.0, (50, 100)), (90.0, (100, 150))])
-def test_find_camp_walks_downhill_along_bearing(bearing, expected_rc):
-    h = _cone()
-    r, c = find_camp(h, 1.0, (100, 100), bearing, target_elev_m=950.0, search_radius_m=5.0)
-    assert abs(r - expected_rc[0]) <= 6 and abs(c - expected_rc[1]) <= 6
-    assert abs(h[r, c] - 950.0) <= 6.0
+def test_place_camps_prefers_the_bearing_from_the_summit(bearing, expected_rc):
+    h = (0.2 * _cone()).astype(np.float32)  # ~11 degree cone, summit 200 m
+    camps = [{"id": "a", "targetElevationM": 190.0, "bearingFromSummitDeg": bearing}]
+    ((r, c),) = place_camps(h, 1.0, (100, 100), camps, tolerance_m=2.0)
+    assert abs(r - expected_rc[0]) <= 8 and abs(c - expected_rc[1]) <= 8
+    assert abs(h[r, c] - 190.0) <= 2.0
+
+
+def test_walkable_map_labels_analysis_grid_and_maps_full_res_cells():
+    h = _plateaus("cliff")
+    wm = walkable_map(h, 2.0, max_slope_deg=30.0, analysis_spacing_m=8.0)
+    assert wm.step == 4
+    assert wm.label_at((100, 20)) != 0
+    assert wm.label_at((100, 20)) != wm.label_at((100, 180))
+
+
+def test_synthetic_test_peak_camps_validate():
+    h = synthetic_heightmap(1025, 2.0)
+    khare, high_camp = (912, 512), (512, 512)  # (0, 800) and (0, 0) in world metres
+    validate_camps(h, 2.0, [("khare", khare), ("high-camp", high_camp)])
+
+
+def test_synthetic_heightmap_has_mound_at_plus_x_minus_z():
+    h = synthetic_heightmap(1025, 2.0)
+    # world (x=512, z=-512) is row 256, col 768; its mirror images stay on the plain
+    assert h[256, 768] == pytest.approx(5020.0, abs=0.5)
+    assert h[768, 768] == pytest.approx(5000.0, abs=0.01)
+    assert h[256, 256] == pytest.approx(5000.0, abs=0.01)
+    assert h[768, 256] == pytest.approx(5000.0, abs=0.01)
 
 
 def test_slope_deg_of_45_degree_ramp():

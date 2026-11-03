@@ -13,30 +13,50 @@ import sys
 import numpy as np
 
 from terrain_lib import (
+    CampPlacementError,
     GridSpec,
     cell_to_world,
     detail_noise,
-    find_camp,
     find_summit,
     latlon_bounds,
+    place_camps,
     resample_to_metric,
     synthetic_heightmap,
     upsample,
+    validate_camps,
+    walkable_map,
     write_terrain,
 )
 
+TEST_PEAK_SPEC = GridSpec(0.0, 0.0, tiles=4, tile_cells=256, spacing_m=2.0)
 
-def bake_synthetic(out: str) -> dict:
-    spec = GridSpec(0.0, 0.0, tiles=4, tile_cells=256, spacing_m=2.0)
+# Defaults for the "campPlacement" block of a bake config. maxWalkSlopeDeg must match
+# GAME_CONFIG.movement.maxWalkSlopeDeg in the engine.
+CAMP_PLACEMENT_DEFAULTS = {"maxWalkSlopeDeg": 30.0, "analysisSpacingM": 8.0, "toleranceM": 100.0, "spawnRadiusM": 6.0}
+
+
+def synthetic_terrain(spec: GridSpec) -> tuple[np.ndarray, list[tuple[str, str, tuple[int, int]]]]:
+    """Synthetic heightmap plus (id, name, cell) for Khare (x=0, z=800) and High Camp
+    (x=0, z=0), snapped to the grid."""
     h = synthetic_heightmap(spec.samples, spec.spacing_m)
 
-    def camp(camp_id: str, name: str, x: float, z: float) -> dict:
-        rc = (int(round((z - spec.origin) / spec.spacing_m)), int(round((x - spec.origin) / spec.spacing_m)))
-        return {"id": camp_id, "name": name, "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
+    def cell(x: float, z: float) -> tuple[int, int]:
+        return int(round((z - spec.origin) / spec.spacing_m)), int(round((x - spec.origin) / spec.spacing_m))
 
-    camps = [camp("khare", "Khare", 0.0, 800.0), camp("high-camp", "High Camp", 0.0, 0.0)]
+    return h, [("khare", "Khare", cell(0.0, 800.0)), ("high-camp", "High Camp", cell(0.0, 0.0))]
+
+
+def bake_synthetic(out: str, spec: GridSpec = TEST_PEAK_SPEC, backdrop_spacing_m: float = 64.0,
+                   validate: bool = True) -> dict:
+    h, camp_cells = synthetic_terrain(spec)
+    if validate:
+        validate_camps(h, spec.spacing_m, [(camp_id, rc) for camp_id, _, rc in camp_cells])
+    camps = [
+        {"id": camp_id, "name": name, "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
+        for camp_id, name, rc in camp_cells
+    ]
     return write_terrain(out, "test-peak", h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
-                         "Synthetic test terrain", backdrop_spacing_m=64.0)
+                         "Synthetic test terrain", backdrop_spacing_m=backdrop_spacing_m)
 
 
 def load_dem(url: str, spec: GridSpec):
@@ -68,10 +88,21 @@ def bake_dem(config_path: str, out: str) -> dict:
     h = upsample(coarse, spec.samples)
     h += detail_noise(spec.samples, spec.spacing_m, cfg["noiseSeed"])
     summit = find_summit(h, spacing_m=spec.spacing_m, radius_m=cfg.get("summitSearchRadiusM"))
-    camps = []
-    for c in cfg["camps"]:
-        rc = find_camp(h, spec.spacing_m, summit, c["bearingFromSummitDeg"], c["targetElevationM"])
-        camps.append({"id": c["id"], "name": c["name"], "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)})
+    opts = {**CAMP_PLACEMENT_DEFAULTS, **cfg.get("campPlacement", {})}
+    walk = {
+        "max_slope_deg": opts["maxWalkSlopeDeg"],
+        "analysis_spacing_m": opts["analysisSpacingM"],
+        "spawn_radius_m": opts["spawnRadiusM"],
+    }
+    print("Placing camps on connected walkable ground ...", flush=True)
+    wm = walkable_map(h, spec.spacing_m, walk["max_slope_deg"], walk["analysis_spacing_m"])
+    cells = place_camps(h, spec.spacing_m, summit, cfg["camps"], tolerance_m=opts["toleranceM"], walk_map=wm, **walk)
+    # The summit camp is reached by climbing (M2), so it is not part of the walkable check.
+    validate_camps(h, spec.spacing_m, [(c["id"], rc) for c, rc in zip(cfg["camps"], cells)], walk_map=wm, **walk)
+    camps = [
+        {"id": c["id"], "name": c["name"], "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
+        for c, rc in zip(cfg["camps"], cells)
+    ]
     camps.append({"id": "summit", "name": "Summit", "position": cell_to_world(summit, spec.origin, spec.spacing_m, h)})
     return write_terrain(out, cfg["id"], h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
                          cfg["attribution"], cfg["backdropSpacingM"])
@@ -84,7 +115,11 @@ def main(argv: list[str]) -> int:
     source.add_argument("--config", help="path to a mountain bake config JSON")
     parser.add_argument("--out", required=True, help="output directory")
     args = parser.parse_args(argv)
-    manifest = bake_synthetic(args.out) if args.synthetic else bake_dem(args.config, args.out)
+    try:
+        manifest = bake_synthetic(args.out) if args.synthetic else bake_dem(args.config, args.out)
+    except CampPlacementError as err:
+        print(f"Camp validation failed: {err}", file=sys.stderr)
+        return 1
     print(f"Wrote {manifest['tilesX'] * manifest['tilesZ']} tiles to {args.out}")
     for camp in manifest["camps"]:
         x, y, z = camp["position"]

@@ -148,39 +148,206 @@ def find_summit(h: np.ndarray, *, spacing_m: float = 1.0, radius_m: float | None
     return int(r), int(c)
 
 
-def find_camp(
+class CampPlacementError(ValueError):
+    """Camps cannot be placed on, or are not connected by, walkable ground."""
+
+
+def label_components(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """4-connected component labels of a boolean mask (0 = not in mask, 1..k).
+
+    Works on horizontal runs: each row's runs are unioned with the overlapping runs of
+    the row above, so the Python loop is over runs rather than cells.
+    Returns (labels, sizes) where sizes[k] is the cell count of label k (sizes[0] = 0).
+    """
+    mask = np.asarray(mask, dtype=bool)
+    rows, cols = mask.shape
+    run_row: list[int] = []
+    run_start: list[int] = []
+    run_end: list[int] = []  # exclusive
+    row_first: list[int] = []
+    for r in range(rows):
+        row_first.append(len(run_row))
+        padded = np.concatenate(([False], mask[r], [False])).astype(np.int8)
+        edges = np.flatnonzero(np.diff(padded))
+        starts, ends = edges[0::2], edges[1::2]
+        run_row.extend([r] * len(starts))
+        run_start.extend(starts.tolist())
+        run_end.extend(ends.tolist())
+    row_first.append(len(run_row))
+
+    parent = list(range(len(run_row)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for r in range(1, rows):
+        a, a_end = row_first[r - 1], row_first[r]
+        b, b_end = row_first[r], row_first[r + 1]
+        while a < a_end and b < b_end:
+            if run_start[a] < run_end[b] and run_start[b] < run_end[a]:
+                ra, rb = find(a), find(b)
+                if ra != rb:
+                    parent[max(ra, rb)] = min(ra, rb)
+            if run_end[a] < run_end[b]:
+                a += 1
+            else:
+                b += 1
+
+    labels = np.zeros((rows, cols), dtype=np.int32)
+    ids: dict[int, int] = {}
+    for i in range(len(run_row)):
+        root = find(i)
+        label = ids.setdefault(root, len(ids) + 1)
+        labels[run_row[i], run_start[i] : run_end[i]] = label
+    sizes = np.bincount(labels.ravel(), minlength=len(ids) + 1)
+    sizes[0] = 0
+    return labels, sizes
+
+
+@dataclass(frozen=True)
+class WalkableMap:
+    """Walkable ground (slope below a threshold) on a coarse analysis grid that takes
+    every step-th full-resolution sample, with its connected components labelled."""
+
+    step: int
+    heights: np.ndarray
+    slope: np.ndarray
+    labels: np.ndarray
+    sizes: np.ndarray
+
+    def coarse(self, rc: tuple[int, int]) -> tuple[int, int]:
+        r = min(max(int(round(rc[0] / self.step)), 0), self.labels.shape[0] - 1)
+        c = min(max(int(round(rc[1] / self.step)), 0), self.labels.shape[1] - 1)
+        return r, c
+
+    def label_at(self, rc: tuple[int, int]) -> int:
+        return int(self.labels[self.coarse(rc)])
+
+
+def walkable_map(
+    h: np.ndarray, spacing_m: float, max_slope_deg: float = 30.0, analysis_spacing_m: float = 8.0
+) -> WalkableMap:
+    """Analyse walkability on a coarser grid (default 8 m) so it runs fast and ignores
+    the small-scale detail noise."""
+    step = max(1, int(round(analysis_spacing_m / spacing_m)))
+    hc = np.asarray(h, dtype=np.float64)[::step, ::step]
+    slope = slope_deg(hc, spacing_m * step)
+    labels, sizes = label_components(slope < max_slope_deg)
+    return WalkableMap(step, hc, slope, labels, sizes)
+
+
+def spawn_is_walkable(
+    h: np.ndarray, spacing_m: float, rc: tuple[int, int], radius_m: float = 6.0, max_slope_deg: float = 30.0
+) -> bool:
+    """True when every full-resolution cell within +/- radius_m of rc is walkable."""
+    k = max(1, int(math.ceil(radius_m / spacing_m)))
+    r, c = rc
+    r_lo, r_hi = max(0, r - k - 1), min(h.shape[0], r + k + 2)
+    c_lo, c_hi = max(0, c - k - 1), min(h.shape[1], c + k + 2)
+    slope = slope_deg(h[r_lo:r_hi, c_lo:c_hi], spacing_m)
+    inner = slope[max(0, r - k) - r_lo : min(h.shape[0], r + k + 1) - r_lo,
+                  max(0, c - k) - c_lo : min(h.shape[1], c + k + 1) - c_lo]
+    return bool(inner.max() < max_slope_deg)
+
+
+def place_camps(
     h: np.ndarray,
     spacing_m: float,
     summit_rc: tuple[int, int],
-    bearing_deg: float,
-    target_elev_m: float,
-    search_radius_m: float = 150.0,
-    margin_cells: int = 8,
-) -> tuple[int, int]:
-    """Walk from the summit along a compass bearing (0 = north, 90 = east) until the
-    terrain drops to target_elev_m, then pick the flattest nearby cell."""
-    n = h.shape[0]
-    dr = -math.cos(math.radians(bearing_deg))
-    dc = math.sin(math.radians(bearing_deg))
-    r, c = float(summit_rc[0]), float(summit_rc[1])
-    while True:
-        nr, nc = r + dr, c + dc
-        inside = margin_cells <= nr < n - margin_cells and margin_cells <= nc < n - margin_cells
-        if not inside:
-            break
-        r, c = nr, nc
-        if h[int(round(r)), int(round(c))] <= target_elev_m:
-            break
-    ri, ci = int(round(r)), int(round(c))
-    rad = max(1, int(search_radius_m / spacing_m))
-    r_lo, r_hi = max(0, ri - rad), min(n, ri + rad + 1)
-    c_lo, c_hi = max(0, ci - rad), min(n, ci + rad + 1)
-    window = h[r_lo:r_hi, c_lo:c_hi]
-    score = slope_deg(window, spacing_m) + np.abs(window - target_elev_m) / 20.0
-    rr, cc = np.mgrid[r_lo:r_hi, c_lo:c_hi]
-    score[np.hypot(rr - ri, cc - ci) > rad] = np.inf
-    br, bc = np.unravel_index(int(np.argmin(score)), score.shape)
-    return int(r_lo + br), int(c_lo + bc)
+    camps: list[dict],
+    *,
+    tolerance_m: float = 100.0,
+    max_slope_deg: float = 30.0,
+    analysis_spacing_m: float = 8.0,
+    spawn_radius_m: float = 6.0,
+    walk_map: WalkableMap | None = None,
+) -> list[tuple[int, int]]:
+    """Place camps inside one connected walkable component.
+
+    The component is the largest one that has ground within tolerance_m of every
+    camp's targetElevationM. Each camp is the cell of that component with the best
+    score (closeness to the target elevation, then flatness, with an optional
+    bearingFromSummitDeg as a mild preference) whose spawn neighbourhood is walkable.
+    """
+    wm = walk_map or walkable_map(h, spacing_m, max_slope_deg, analysis_spacing_m)
+    hc, labels = wm.heights, wm.labels
+    common: set[int] | None = None
+    for camp in camps:
+        near = labels[(np.abs(hc - camp["targetElevationM"]) <= tolerance_m) & (labels > 0)]
+        found = set(np.unique(near).tolist())
+        common = found if common is None else common & found
+    if not common:
+        targets = ", ".join(f"{c['id']}={c['targetElevationM']:.0f} m" for c in camps)
+        raise CampPlacementError(
+            f"no walkable component (slope < {max_slope_deg} deg) reaches every camp target "
+            f"within +/-{tolerance_m:.0f} m ({targets})"
+        )
+    component = max(common, key=lambda k: wm.sizes[k])
+
+    margin = int(math.ceil(spawn_radius_m / (spacing_m * wm.step))) + 1
+    rr, cc = np.mgrid[0 : labels.shape[0], 0 : labels.shape[1]]
+    inside = (
+        (rr >= margin) & (rr < labels.shape[0] - margin) & (cc >= margin) & (cc < labels.shape[1] - margin)
+    )
+    sr, sc = summit_rc[0] / wm.step, summit_rc[1] / wm.step
+    out: list[tuple[int, int]] = []
+    for camp in camps:
+        target = camp["targetElevationM"]
+        dh = np.abs(hc - target)
+        candidates = np.flatnonzero((labels == component) & (dh <= tolerance_m) & inside)
+        score = dh.ravel()[candidates] / 20.0 + wm.slope.ravel()[candidates]
+        bearing = camp.get("bearingFromSummitDeg")
+        if bearing is not None:
+            cand_r, cand_c = np.divmod(candidates, labels.shape[1])
+            cand_bearing = np.degrees(np.arctan2(cand_c - sc, sr - cand_r))
+            off = np.abs((cand_bearing - bearing + 180.0) % 360.0 - 180.0)
+            score = score + off / 30.0
+        chosen = None
+        for i in candidates[np.argsort(score, kind="stable")]:
+            r, c = divmod(int(i), labels.shape[1])
+            rc = (r * wm.step, c * wm.step)
+            if spawn_is_walkable(h, spacing_m, rc, spawn_radius_m, max_slope_deg):
+                chosen = rc
+                break
+        if chosen is None:
+            raise CampPlacementError(f"camp {camp['id']}: no candidate with a walkable spawn neighbourhood")
+        out.append(chosen)
+    return out
+
+
+def validate_camps(
+    h: np.ndarray,
+    spacing_m: float,
+    camps: list[tuple[str, tuple[int, int]]],
+    *,
+    max_slope_deg: float = 30.0,
+    analysis_spacing_m: float = 8.0,
+    spawn_radius_m: float = 6.0,
+    walk_map: WalkableMap | None = None,
+) -> None:
+    """Raise CampPlacementError unless every camp spawns on walkable ground and each
+    pair of consecutive camps lies in the same walkable component.
+
+    Pass only the camps that must be reached on foot: the summit camp is reached by
+    climbing (M2) and is exempt.
+    """
+    for camp_id, rc in camps:
+        if not spawn_is_walkable(h, spacing_m, rc, spawn_radius_m, max_slope_deg):
+            raise CampPlacementError(
+                f"camp {camp_id}: spawn neighbourhood (+/-{spawn_radius_m} m) is too steep "
+                f"(slope >= {max_slope_deg} deg)"
+            )
+    wm = walk_map or walkable_map(h, spacing_m, max_slope_deg, analysis_spacing_m)
+    for (a_id, a_rc), (b_id, b_rc) in zip(camps, camps[1:]):
+        la, lb = wm.label_at(a_rc), wm.label_at(b_rc)
+        if la == 0 or la != lb:
+            raise CampPlacementError(
+                f"camps {a_id} and {b_id} are not connected by walkable ground "
+                f"(slope < {max_slope_deg} deg at {spacing_m * wm.step:g} m analysis spacing)"
+            )
 
 
 def cell_to_world(rc: tuple[int, int], origin_m: float, spacing_m: float, h: np.ndarray) -> list[float]:
@@ -194,14 +361,20 @@ def cell_to_world(rc: tuple[int, int], origin_m: float, spacing_m: float, h: np.
 
 def synthetic_heightmap(samples: int, spacing_m: float) -> np.ndarray:
     """Test mountain: 5000 m plain, a ~19 degree cone rising 240 m within 700 m of
-    the centre, and an 8 m cliff band at radius 300 m."""
+    the centre, and an 8 m cliff band at radius 300 m. On the south side (z > 0,
+    |x| < 40 m, tapering out by |x| = 80 m) the cliff becomes an 80 m ramp so the
+    summit is walkable from the south. A 20 m mound at (x = +512, z = -512) makes
+    the terrain asymmetric so axis mix-ups show up in tests."""
     half = (samples - 1) * spacing_m / 2.0
     coords = np.arange(samples) * spacing_m - half
     x, z = np.meshgrid(coords, coords)
     r = np.hypot(x, z)
     cone = np.clip(1.0 - r / 700.0, 0.0, 1.0) * 240.0
-    cliff = 8.0 * np.clip((300.0 - r) / 1.0 + 0.5, 0.0, 1.0)
-    return (5000.0 + cone + cliff).astype(np.float32)
+    gap = np.where(z > 0.0, np.clip((80.0 - np.abs(x)) / 40.0, 0.0, 1.0), 0.0)
+    cliff_width = 1.0 + 79.0 * gap
+    cliff = 8.0 * np.clip((300.0 - r) / cliff_width + 0.5, 0.0, 1.0)
+    mound = 20.0 * np.exp(-((x - 512.0) ** 2 + (z + 512.0) ** 2) / (2.0 * 40.0**2))
+    return (5000.0 + cone + cliff + mound).astype(np.float32)
 
 
 def write_terrain(

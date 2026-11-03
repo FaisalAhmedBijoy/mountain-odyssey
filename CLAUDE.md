@@ -47,7 +47,7 @@ Load a specific mountain with `?mountain=<id>` (e.g. `/?mountain=test-peak`); de
 
 **Terrain is data, not code:**
 
-- Offline: `tools/terrain/bake.py` crops the Copernicus GLO-30 DEM, resamples it to a 2 m local metric grid, adds detail noise, finds camps (walk from the summit along a bearing to a target elevation, pick the flattest cell) and writes `manifest.json`, `backdrop.u16` and `tiles/<tx>_<tz>.u16`.
+- Offline: `tools/terrain/bake.py` crops the Copernicus GLO-30 DEM, resamples it to a 2 m local metric grid, adds detail noise, places camps on one connected walkable region (slope < 30°) near each target elevation, validates that consecutive camps are walk-connected (bake fails otherwise) and writes `manifest.json`, `backdrop.u16` and `tiles/<tx>_<tz>.u16`.
 - Tiles are raw little-endian `uint16`, 257 × 257 samples, row-major with row = z, and neighbouring tiles share edge samples. Height = `min + v / 65535 * (max - min)` from the manifest.
 - World axes: x = east, z = south, y = up (real elevation in metres). Camera yaw 0 looks toward −Z (north).
 - Runtime: `ChunkManager` streams tiles around the player in LOD rings (`GAME_CONFIG.terrain.lodRings`), builds meshes off-thread (`meshBuilder.worker.ts`), keeps Rapier heightfield colliders only for the 3 × 3 tiles around the player, and redraws a low-res backdrop mesh with a hole where chunks are. `TerrainSampler` answers CPU height, normal and slope queries for gameplay and the camera.
