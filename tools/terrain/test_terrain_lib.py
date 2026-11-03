@@ -137,3 +137,27 @@ def test_write_terrain_outputs_manifest_tiles_and_backdrop(tmp_path):
     assert manifest["backdrop"] == {"file": "backdrop.u16", "samples": 5, "spacingM": 4.0}
     assert (tmp_path / "backdrop.u16").stat().st_size == 5 * 5 * 2
     assert json.loads((tmp_path / "manifest.json").read_text())["camps"][1]["id"] == "b"
+
+
+def test_written_tile_decodes_back_to_heights(tmp_path):
+    spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=4, spacing_m=2.0)
+    r, c = np.mgrid[0 : spec.samples, 0 : spec.samples]
+    h = (100 + c + 10 * r).astype(np.float32)  # asymmetric, so a transpose shows up
+    camps = [
+        {"id": "a", "name": "A", "position": [0.0, 100.0, 0.0]},
+        {"id": "b", "name": "B", "position": [1.0, 150.0, 1.0]},
+    ]
+    manifest = write_terrain(
+        tmp_path, "demo", h, spec.spacing_m, spec.tile_cells, spec.origin, camps, "Test", backdrop_spacing_m=4.0
+    )
+    lo, hi = manifest["minHeightM"], manifest["maxHeightM"]
+    tol = (hi - lo) / 65535
+
+    def decode(path):
+        raw = np.frombuffer(path.read_bytes(), dtype="<u2").reshape(5, 5)
+        return lo + raw.astype(np.float64) / 65535 * (hi - lo)
+
+    # tile (tx=1, tz=0) covers grid rows 0..4 and cols 4..8
+    np.testing.assert_allclose(decode(tmp_path / "tiles" / "1_0.u16"), h[0:5, 4:9], atol=tol)
+    # backdrop is every 2nd sample of the 9x9 grid
+    np.testing.assert_allclose(decode(tmp_path / "backdrop.u16"), h[::2, ::2], atol=tol)
