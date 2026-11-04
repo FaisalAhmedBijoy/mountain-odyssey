@@ -40,4 +40,20 @@ describe('Python bake -> TerrainSampler axis contract', () => {
     expect(sampler.heightAt(512, 512)).toBeCloseTo(5000, 1);
     expect(sampler.heightAt(-512, 512)).toBeCloseTo(5000, 1);
   });
+
+  it('ships a walkable route from the first camp to the next that lies on the terrain', () => {
+    const { m, sampler } = loadFixture();
+    const route = m.routes!.find((r) => r.from === m.camps[0].id)!;
+    expect(route.to).toBe(m.camps[1].id);
+    const [first, last] = [route.points[0], route.points[route.points.length - 1]];
+    expect(
+      Math.hypot(first[0] - m.camps[0].position[0], first[2] - m.camps[0].position[2]),
+    ).toBeLessThan(8);
+    expect(
+      Math.hypot(last[0] - m.camps[1].position[0], last[2] - m.camps[1].position[2]),
+    ).toBeLessThan(8);
+    for (const [x, y, z] of route.points) {
+      expect(Math.abs(sampler.heightAt(x, z)! - y)).toBeLessThan(0.5);
+    }
+  });
 });

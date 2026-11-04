@@ -4,6 +4,16 @@ export interface CampDef {
   position: [number, number, number];
 }
 
+export interface RouteDef {
+  from: string;
+  to: string;
+  lengthM: number;
+  /** [x, y, z] world points, at most ~20 m apart. */
+  points: [number, number, number][];
+  /** [x, y, z] trail-marker positions. */
+  markers: [number, number, number][];
+}
+
 export interface TerrainManifest {
   id: string;
   spacingM: number;
@@ -16,6 +26,7 @@ export interface TerrainManifest {
   maxHeightM: number;
   backdrop: { file: string; samples: number; spacingM: number };
   camps: CampDef[];
+  routes?: RouteDef[];
   attribution: string;
 }
 
@@ -59,6 +70,36 @@ export const tileKey = (tx: number, tz: number): string => `${tx}_${tz}`;
 export const tileUrl = (baseUrl: string, tx: number, tz: number): string =>
   `${baseUrl}/tiles/${tx}_${tz}.u16`;
 
+const isVec3 = (v: unknown): v is [number, number, number] =>
+  Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === 'number' && Number.isFinite(n));
+
+/** Valid routes only; malformed entries are dropped with a warning, never thrown. */
+export function parseRoutes(raw: unknown, campIds: ReadonlySet<string>): RouteDef[] {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) {
+    console.warn('Terrain manifest "routes" is not an array; ignoring it');
+    return [];
+  }
+  const out: RouteDef[] = [];
+  raw.forEach((entry: unknown, i) => {
+    const r = (entry ?? {}) as Partial<RouteDef>;
+    const ok =
+      typeof r.from === 'string' &&
+      campIds.has(r.from) &&
+      typeof r.to === 'string' &&
+      campIds.has(r.to) &&
+      typeof r.lengthM === 'number' &&
+      Array.isArray(r.points) &&
+      r.points.length >= 2 &&
+      r.points.every(isVec3) &&
+      Array.isArray(r.markers) &&
+      r.markers.every(isVec3);
+    if (ok) out.push(r as RouteDef);
+    else console.warn(`Terrain manifest route ${i} is malformed; ignoring it`);
+  });
+  return out;
+}
+
 export function parseManifest(json: unknown): TerrainManifest {
   const m = json as Partial<TerrainManifest>;
   for (const key of REQUIRED) {
@@ -67,7 +108,8 @@ export function parseManifest(json: unknown): TerrainManifest {
   if (!Array.isArray(m.camps) || m.camps.length < 2) {
     throw new Error('Terrain manifest needs at least two camps');
   }
-  return { attribution: '', ...m } as TerrainManifest;
+  const campIds = new Set(m.camps.map((c) => c.id));
+  return { attribution: '', ...m, routes: parseRoutes(m.routes, campIds) } as TerrainManifest;
 }
 
 export async function fetchWithRetry(

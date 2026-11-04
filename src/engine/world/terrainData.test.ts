@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { decodeHeights, fetchWithRetry, parseManifest, tileKey, tileUrl } from './terrainData';
+import {
+  decodeHeights,
+  fetchWithRetry,
+  parseManifest,
+  parseRoutes,
+  tileKey,
+  tileUrl,
+} from './terrainData';
 
 describe('terrainData', () => {
   it('decodes uint16 samples into metres', () => {
@@ -35,5 +42,59 @@ describe('terrainData', () => {
     await expect(fetchWithRetry('/a', 2, 0, fetchFn as unknown as typeof fetch)).rejects.toThrow(
       'HTTP 404 for /a',
     );
+  });
+});
+
+describe('routes in the manifest', () => {
+  const base = {
+    id: 't',
+    spacingM: 1,
+    tileSamples: 3,
+    tilesX: 1,
+    tilesZ: 1,
+    originX: 0,
+    originZ: 0,
+    minHeightM: 0,
+    maxHeightM: 1,
+    backdrop: { file: 'b', samples: 2, spacingM: 2 },
+    camps: [
+      { id: 'a', name: 'A', position: [0, 0, 0] },
+      { id: 'b', name: 'B', position: [0, 0, -100] },
+    ],
+  };
+  const good = {
+    from: 'a',
+    to: 'b',
+    lengthM: 100,
+    points: [
+      [0, 0, 0],
+      [0, 0, -100],
+    ],
+    markers: [],
+  };
+
+  it('keeps well-formed routes', () => {
+    expect(parseManifest({ ...base, routes: [good] }).routes).toEqual([good]);
+  });
+
+  it('defaults to no routes', () => {
+    expect(parseManifest(base).routes).toEqual([]);
+  });
+
+  it('drops malformed routes with a warning instead of throwing', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const routes = parseRoutes(
+      [good, { ...good, to: 'nowhere' }, { ...good, points: [[0, 0]] }, 'junk'],
+      new Set(['a', 'b']),
+    );
+    expect(routes).toEqual([good]);
+    expect(warn).toHaveBeenCalledTimes(3);
+    warn.mockRestore();
+  });
+
+  it('ignores a non-array routes field', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(parseRoutes({ nope: true }, new Set(['a']))).toEqual([]);
+    warn.mockRestore();
   });
 });
