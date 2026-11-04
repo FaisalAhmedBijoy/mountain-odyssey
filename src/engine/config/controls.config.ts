@@ -9,6 +9,7 @@ export const CONTROLS = {
   grab: ['KeyE'],
   cameraDistance: ['KeyC'],
   toggleRoute: ['KeyT'],
+  toggleHelp: ['KeyH'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Action = keyof typeof CONTROLS;

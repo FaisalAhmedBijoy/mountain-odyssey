@@ -15,6 +15,8 @@ export interface HudState {
   fps: number;
   attribution: string;
   guide: GuideHud | null;
+  /** Controls panel expanded (H toggles). */
+  helpOpen: boolean;
 }
 
 export const initialHudState: HudState = {
@@ -31,4 +33,5 @@ export const initialHudState: HudState = {
   fps: 0,
   attribution: '',
   guide: null,
+  helpOpen: true,
 };

@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '../state/gameStore';
+import { CONTROL_HINTS } from './controlHints';
 import { formatDistance } from './formatDistance';
 import { unwrapAngle } from './unwrapAngle';
 
@@ -61,12 +62,32 @@ export function Hud() {
           {s.toast}
         </div>
       )}
-      {s.paused && (
-        <div className="overlay overlay--pause">
-          Click to play · WASD move · Shift run · Space jump · E grab · C camera · T route · Esc
-          pause
-        </div>
-      )}
+      {s.paused && <div className="overlay overlay--pause">Click to play · Esc pause</div>}
+      <div
+        className={`hud__controls${s.helpOpen ? '' : ' hud__controls--closed'}`}
+        data-testid="controls"
+        aria-label="Controls"
+      >
+        {s.helpOpen ? (
+          <dl className="hud__controls-list">
+            {CONTROL_HINTS.map((hint) => (
+              <div className="hud__controls-row" key={hint.label}>
+                <dt>
+                  {hint.keys.map((k) => (
+                    <kbd key={k}>{k}</kbd>
+                  ))}
+                </dt>
+                <dd>{hint.label}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <div className="hud__controls-row">
+            <kbd>H</kbd>
+            <span>Controls</span>
+          </div>
+        )}
+      </div>
       <div className="hud__fps">{s.fps} FPS</div>
       <div className="hud__credit">{s.attribution}</div>
     </div>

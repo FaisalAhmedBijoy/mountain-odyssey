@@ -61,6 +61,7 @@ export class Game {
   private hudElapsedMs = 0;
   private hudFrames = 0;
   private guideHud: GuideHud | null = null;
+  private helpOpen = true;
 
   static async create(options: GameOptions): Promise<Game> {
     const game = new Game(options);
@@ -286,6 +287,11 @@ export class Game {
     const w = this.w;
     if (!w) return;
     const mouse = this.input.consumeMouse();
+    // Read in render, not step, so H also works while the game is paused.
+    if (this.input.consumePressed('toggleHelp')) {
+      this.helpOpen = !this.helpOpen;
+      this.o.publish({ helpOpen: this.helpOpen });
+    }
     if (!this.loop.isPaused) {
       w.cameraCtrl.applyMouse(mouse.dx, mouse.dy);
       w.cameraCtrl.applyWheel(mouse.wheel);

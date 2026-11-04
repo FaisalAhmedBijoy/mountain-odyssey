@@ -8,6 +8,13 @@ test('loads the test mountain and shows the HUD at Khare', async ({ page }) => {
   await expect(page.getByTestId('altitude')).toHaveText(/^5,0\d\d m$/);
   await expect(page.getByTestId('guide')).toContainText(/High Camp · \d+(\.\d)? (m|km)/);
   await expect(page.getByText('Click to play')).toBeVisible();
+  const controls = page.getByTestId('controls');
+  await expect(controls).toContainText('Grab wall');
+  await page.keyboard.press('KeyH');
+  await expect(controls).not.toContainText('Grab wall');
+  await expect(controls).toContainText('Controls');
+  await page.keyboard.press('KeyH');
+  await expect(controls).toContainText('Grab wall');
   await expect(page.getByText('Synthetic test terrain')).toBeVisible();
   expect(errors).toEqual([]);
 });
