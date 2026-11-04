@@ -1,3 +1,4 @@
+import type { GuideHud } from '../systems/RouteGuide';
 import type { MoveState } from '../player/movementState';
 
 export interface HudState {
@@ -13,6 +14,7 @@ export interface HudState {
   toast: string | null;
   fps: number;
   attribution: string;
+  guide: GuideHud | null;
 }
 
 export const initialHudState: HudState = {
@@ -28,4 +30,5 @@ export const initialHudState: HudState = {
   toast: null,
   fps: 0,
   attribution: '',
+  guide: null,
 };

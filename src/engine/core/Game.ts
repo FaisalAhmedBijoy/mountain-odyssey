@@ -6,6 +6,8 @@ import type { MoveInput } from '../player/movementState';
 import { Player } from '../player/Player';
 import { PlayerVisual } from '../player/PlayerVisual';
 import { CheckpointSystem } from '../systems/CheckpointSystem';
+import { RouteGuide, type GuideHud } from '../systems/RouteGuide';
+import { activeRoute } from '../systems/routeMath';
 import { ChunkManager } from '../world/ChunkManager';
 import { Environment } from '../world/Environment';
 import { SyncMeshBuilder, WorkerMeshBuilder, type MeshBuilder } from '../world/meshBuilder';
@@ -37,6 +39,7 @@ interface World {
   visual: PlayerVisual;
   cameraCtrl: ThirdPersonCamera;
   checkpoints: CheckpointSystem;
+  guide: RouteGuide;
 }
 
 /** Composition root: owns the renderer, systems and loop. The only API React uses. */
@@ -57,6 +60,7 @@ export class Game {
   private toast: { text: string; until: number } | null = null;
   private hudElapsedMs = 0;
   private hudFrames = 0;
+  private guideHud: GuideHud | null = null;
 
   static async create(options: GameOptions): Promise<Game> {
     const game = new Game(options);
@@ -166,6 +170,9 @@ export class Game {
     const visual = await PlayerVisual.load(this.scene, o.characterUrl, cfg.player.heightM);
     this.cleanup.push(() => visual.dispose());
 
+    const guide = new RouteGuide(this.scene);
+    this.cleanup.push(() => guide.dispose());
+
     this.w = {
       manifest,
       physics,
@@ -180,8 +187,10 @@ export class Game {
         cfg.checkpoints.maxHeightDiffM,
         this.events,
       ),
+      guide,
     };
     this.wireEvents();
+    this.setActiveRoute(start.id);
     this.attachDom();
     o.publish({
       status: 'ready',
@@ -192,11 +201,21 @@ export class Game {
     });
   }
 
+  /** Show the route leaving the given camp (hidden when there is none). */
+  private setActiveRoute(campId: string): void {
+    const w = this.w;
+    if (!w) return;
+    const route = activeRoute(w.manifest.routes, campId);
+    const destination = route ? w.manifest.camps.find((c) => c.id === route.to) : undefined;
+    w.guide.setRoute(route, destination?.name ?? '');
+  }
+
   private wireEvents(): void {
     this.cleanup.push(
-      this.events.on('checkpoint:reached', ({ name }) => {
+      this.events.on('checkpoint:reached', ({ id, name }) => {
         this.showToast(`Checkpoint reached: ${name}`);
         this.o.publish({ lastCheckpoint: name });
+        this.setActiveRoute(id);
       }),
       this.events.on('player:fell', ({ outcome }) => {
         if (outcome === 'fatal') this.pendingRespawn = true;
@@ -249,6 +268,7 @@ export class Game {
       jump: this.input.consumePressed('jump'),
     };
     if (this.input.consumePressed('cameraDistance')) w.cameraCtrl.cycleDistance();
+    if (this.input.consumePressed('toggleRoute')) w.guide.toggleRibbon();
     w.player.step(move, w.cameraCtrl.yaw, dt);
     w.physics.step(dt);
     w.player.afterPhysics();
@@ -280,6 +300,7 @@ export class Game {
       this.loop.isPaused ? 0 : frameDt,
     );
     w.cameraCtrl.update(feet, snap.state === 'climb', frameDt);
+    this.guideHud = w.guide.update(feet, w.cameraCtrl.yaw);
     this.environment.follow(feet);
     if (!this.respawning) w.chunks.update(feet.x, feet.z).catch((err: unknown) => this.fail(err));
     this.renderer.render(this.scene, this.camera);
@@ -303,6 +324,7 @@ export class Game {
     try {
       w.player.teleport(this.spawnPoint(w.sampler, camp));
       w.cameraCtrl.snap();
+      this.setActiveRoute(camp.id);
       this.events.emit('player:respawned', { checkpointId: camp.id, checkpointName: camp.name });
     } catch (err) {
       this.fail(err);
@@ -333,6 +355,7 @@ export class Game {
       prompt: s.prompt,
       toast: this.toast?.text ?? null,
       fps,
+      guide: this.guideHud,
     });
   }
 

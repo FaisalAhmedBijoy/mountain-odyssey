@@ -1,5 +1,6 @@
 import { useStore } from 'zustand';
 import { gameStore } from '../state/gameStore';
+import { formatDistance } from './formatDistance';
 
 export function Hud() {
   const s = useStore(gameStore);
@@ -25,6 +26,26 @@ export function Hud() {
           {s.lastCheckpoint} · {s.moveState}
         </div>
       </div>
+      {s.guide && (
+        <div
+          className={`hud__guide${s.guide.offRoute ? ' hud__guide--off' : ''}`}
+          data-testid="guide"
+        >
+          <div
+            className="hud__guide-arrow"
+            style={{ transform: `rotate(${s.guide.bearingRad}rad)` }}
+            aria-hidden="true"
+          >
+            ▲
+          </div>
+          <div className="hud__guide-label">
+            {s.guide.label} · {formatDistance(s.guide.distanceM)}
+          </div>
+          {s.guide.offRoute && (
+            <div className="hud__guide-warning">Off route — follow the arrow</div>
+          )}
+        </div>
+      )}
       {s.prompt && <div className="hud__prompt">{s.prompt}</div>}
       {s.toast && (
         <div className="hud__toast" role="status">
@@ -33,7 +54,8 @@ export function Hud() {
       )}
       {s.paused && (
         <div className="overlay overlay--pause">
-          Click to play · WASD move · Shift run · Space jump · E grab · C camera · Esc pause
+          Click to play · WASD move · Shift run · Space jump · E grab · C camera · T route · Esc
+          pause
         </div>
       )}
       <div className="hud__fps">{s.fps} FPS</div>

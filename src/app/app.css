@@ -122,7 +122,7 @@ body,
 
 .hud__toast {
   position: absolute;
-  top: 24px;
+  top: 96px;
   left: 50%;
   transform: translateX(-50%);
   padding: 10px 18px;
@@ -144,4 +144,40 @@ body,
   right: 12px;
   font-size: 11px;
   opacity: 0.7;
+}
+
+.hud__guide {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(13, 17, 23, 0.55);
+}
+
+.hud__guide-arrow {
+  font-size: 22px;
+  line-height: 1;
+  color: #ff8a1f;
+  transition: transform 100ms linear;
+}
+
+.hud__guide--off .hud__guide-arrow {
+  color: #ff5a4a;
+}
+
+.hud__guide-label {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__guide-warning {
+  font-size: 12px;
+  color: #ffb4a8;
 }
