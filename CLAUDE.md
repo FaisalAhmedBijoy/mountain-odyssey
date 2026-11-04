@@ -4,16 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Mountain Odyssey is a free, browser-based, third-person mountaineering game (desktop only, keyboard + mouse, WebGL2). The repository currently contains only design documents; implementation starts with the plan below.
+Mountain Odyssey is a free, browser-based, third-person mountaineering game (desktop only, keyboard + mouse, WebGL2). Phase 0 + M1 (vertical slice: Khare → High Camp on Mera Peak) is implemented; the manual playtest gate in `docs/playtest/m1-checklist.md` is pending. M2 (full route, survival, menus, deploy) is next and needs its own plan.
 
 - Design spec (source of truth for gameplay numbers and scope): `docs/superpowers/specs/2026-11-03-mountain-odyssey-design.md`
-- Current implementation plan (Phase 0 + M1 vertical slice, 16 TDD tasks): `docs/superpowers/plans/2026-11-03-m1-vertical-slice.md`
+- Implemented plan (Phase 0 + M1 vertical slice, 16 TDD tasks): `docs/superpowers/plans/2026-11-03-m1-vertical-slice.md`
 
 When code and these documents disagree, check the plan's "Deliberate deviations from the spec" section before changing either. Record any new deviation in the spec.
 
 ## Commands
-
-These are defined by the plan (Task 1); they apply once the project is scaffolded.
 
 ```bash
 npm run dev            # Vite dev server (http://localhost:5173)
@@ -24,7 +22,7 @@ npm run format         # Prettier (run before every commit; CI runs format:check
 npm test               # Vitest, all unit tests (src/**/*.test.ts)
 npx vitest run src/engine/player/Player.test.ts   # single test file
 npx vitest run -t "climbs it"                     # tests matching a name
-npm run e2e            # Playwright; needs `npm run terrain:test` first
+npm run e2e            # Playwright; `pree2e` bakes the synthetic test-peak first
 
 # Terrain pipeline (Python 3.9+, use the venv)
 python3 -m venv .venv && .venv/bin/pip install -r tools/terrain/requirements.txt
@@ -43,7 +41,7 @@ Load a specific mountain with `?mountain=<id>` (e.g. `/?mountain=test-peak`); de
 
 **Rendering vs physics:** Three.js only renders; Rapier (`@dimforge/rapier3d-compat`, WASM) only simulates. The player is a kinematic capsule driven by Rapier's character controller. While climbing, the controller's slope limits and snap-to-ground are switched off (`setClimbMode`).
 
-**Movement logic is pure and separate from physics:** `movementState.ts` (state machine: walk/run/slide/climb/fall), `stamina.ts` and `fallDamage.ts` are pure functions unit-tested without Rapier. `Player.ts` glues them to physics and raycasts. Fall damage is measured from the peak height across both `fall` and `slide` states.
+**Movement logic is pure and separate from physics:** `movementState.ts` (state machine: walk/run/slide/climb/fall), `stamina.ts` and `fallDamage.ts` are pure functions unit-tested without Rapier. `Player.ts` glues them to physics and raycasts. Fall damage is scored per segment: airborne falls plus sliding on ground ≥ 50° (`minClimbSlopeDeg`) accumulate; a gentle (30–50°) slide, a landing, or grabbing a wall scores the pending segment. Gentle slides never damage.
 
 **Terrain is data, not code:**
 
