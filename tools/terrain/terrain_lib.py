@@ -568,6 +568,7 @@ def write_terrain(
     camps: list[dict],
     attribution: str,
     backdrop_spacing_m: float,
+    routes: list[dict] | None = None,
 ) -> dict:
     out = Path(out_dir)
     tiles_dir = out / "tiles"
@@ -596,5 +597,7 @@ def write_terrain(
         "camps": camps,
         "attribution": attribution,
     }
+    if routes is not None:
+        manifest["routes"] = routes
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest

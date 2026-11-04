@@ -384,3 +384,20 @@ def test_build_routes_returns_manifest_ready_dicts():
     assert (route["from"], route["to"]) == ("a", "b")
     assert route["lengthM"] == float(round(route_length(route["points"])))
     assert route["markers"] == route_markers(route["points"])
+
+
+def test_bake_synthetic_writes_a_route_through_the_south_ramp(tmp_path):
+    from bake import bake_synthetic
+
+    m = bake_synthetic(str(tmp_path))
+    (route,) = m["routes"]
+    assert (route["from"], route["to"]) == ("khare", "high-camp")
+    khare, high = (c["position"] for c in m["camps"])
+    assert route["points"][0][0] == pytest.approx(khare[0], abs=0.1)
+    assert route["points"][0][2] == pytest.approx(khare[2], abs=0.1)
+    assert route["points"][-1][0] == pytest.approx(high[0], abs=0.1)
+    assert route["points"][-1][2] == pytest.approx(high[2], abs=0.1)
+    assert 780.0 <= route["lengthM"] <= 1000.0
+    ramp = [p for p in route["points"] if 280.0 <= p[2] <= 320.0]
+    assert ramp and all(abs(p[0]) < 80.0 for p in ramp)
+    assert json.loads((tmp_path / "manifest.json").read_text())["routes"] == m["routes"]

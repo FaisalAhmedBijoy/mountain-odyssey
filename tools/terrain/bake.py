@@ -15,6 +15,7 @@ import numpy as np
 from terrain_lib import (
     CampPlacementError,
     GridSpec,
+    build_routes,
     cell_to_world,
     detail_noise,
     find_summit,
@@ -49,14 +50,18 @@ def synthetic_terrain(spec: GridSpec) -> tuple[np.ndarray, list[tuple[str, str, 
 def bake_synthetic(out: str, spec: GridSpec = TEST_PEAK_SPEC, backdrop_spacing_m: float = 64.0,
                    validate: bool = True) -> dict:
     h, camp_cells = synthetic_terrain(spec)
+    slope_limit = CAMP_PLACEMENT_DEFAULTS["maxWalkSlopeDeg"]
+    wm = walkable_map(h, spec.spacing_m, slope_limit, CAMP_PLACEMENT_DEFAULTS["analysisSpacingM"])
+    walk_cells = [(camp_id, rc) for camp_id, _, rc in camp_cells]
     if validate:
-        validate_camps(h, spec.spacing_m, [(camp_id, rc) for camp_id, _, rc in camp_cells])
+        validate_camps(h, spec.spacing_m, walk_cells, walk_map=wm)
+    routes = build_routes(h, spec.spacing_m, spec.origin, wm, walk_cells, max_slope_deg=slope_limit)
     camps = [
         {"id": camp_id, "name": name, "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
         for camp_id, name, rc in camp_cells
     ]
     return write_terrain(out, "test-peak", h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
-                         "Synthetic test terrain", backdrop_spacing_m=backdrop_spacing_m)
+                         "Synthetic test terrain", backdrop_spacing_m=backdrop_spacing_m, routes=routes)
 
 
 def load_dem(url: str, spec: GridSpec):
@@ -98,14 +103,17 @@ def bake_dem(config_path: str, out: str) -> dict:
     wm = walkable_map(h, spec.spacing_m, walk["max_slope_deg"], walk["analysis_spacing_m"])
     cells = place_camps(h, spec.spacing_m, summit, cfg["camps"], tolerance_m=opts["toleranceM"], walk_map=wm, **walk)
     # The summit camp is reached by climbing (M2), so it is not part of the walkable check.
-    validate_camps(h, spec.spacing_m, [(c["id"], rc) for c, rc in zip(cfg["camps"], cells)], walk_map=wm, **walk)
+    walk_cells = [(c["id"], rc) for c, rc in zip(cfg["camps"], cells)]
+    validate_camps(h, spec.spacing_m, walk_cells, walk_map=wm, **walk)
+    print("Finding walkable routes between camps ...", flush=True)
+    routes = build_routes(h, spec.spacing_m, spec.origin, wm, walk_cells, max_slope_deg=walk["max_slope_deg"])
     camps = [
         {"id": c["id"], "name": c["name"], "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
         for c, rc in zip(cfg["camps"], cells)
     ]
     camps.append({"id": "summit", "name": "Summit", "position": cell_to_world(summit, spec.origin, spec.spacing_m, h)})
     return write_terrain(out, cfg["id"], h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
-                         cfg["attribution"], cfg["backdropSpacingM"])
+                         cfg["attribution"], cfg["backdropSpacingM"], routes=routes)
 
 
 def main(argv: list[str]) -> int:
@@ -118,12 +126,15 @@ def main(argv: list[str]) -> int:
     try:
         manifest = bake_synthetic(args.out) if args.synthetic else bake_dem(args.config, args.out)
     except CampPlacementError as err:
-        print(f"Camp validation failed: {err}", file=sys.stderr)
+        print(f"Bake validation failed: {err}", file=sys.stderr)
         return 1
     print(f"Wrote {manifest['tilesX'] * manifest['tilesZ']} tiles to {args.out}")
     for camp in manifest["camps"]:
         x, y, z = camp["position"]
         print(f"  {camp['id']:<10} x={x:>9.1f}  z={z:>9.1f}  elevation={y:>7.1f} m")
+    for route in manifest.get("routes", []):
+        print(f"  route {route['from']} -> {route['to']}: {route['lengthM']:.0f} m, "
+              f"{len(route['points'])} points, {len(route['markers'])} markers")
     return 0
 
 
