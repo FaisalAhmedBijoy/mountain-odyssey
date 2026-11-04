@@ -90,10 +90,12 @@ One route per consecutive pair of walk-connected camps in the manifest order (fo
 ### 4.3 RouteGuide system — `src/engine/systems/RouteGuide.ts`
 
 - Owns the active route, the ribbon mesh, the marker instances and the visibility flag. It never touches React.
-- **Ribbon**
-  - A triangle strip built from the route points: `ribbonWidthM` (1.2 m) wide, lifted `ribbonLiftM` (0.15 m) above the point heights.
-  - The material is unlit, semi-transparent and bright orange, with `depthWrite: false` and `fog: false`, so it stays readable in fog.
-  - Only the window from `behindM` (50 m) behind to `aheadM` (400 m) ahead of the player's progress is drawn. The window is updated when progress moves by more than 10 m (draw-range update, no reallocation).
+- **Ribbon** (draped on the terrain)
+  - `RouteGuide` takes a height function `(x, z) => number | null`; `Game` passes `TerrainSampler.heightAt`.
+  - Only the window from `behindM` (50 m) behind to `aheadM` (400 m) ahead of the player's progress is built, as a densified strip: one row every `ribbonVertexSpacingM` (2 m) along the route, three vertices per row (left edge, centre, right edge, `ribbonWidthM` = 1.2 m wide). Each vertex sits at the terrain height at its own x/z plus `ribbonLiftM` (0.3 m); where the height function returns null (tile not loaded) it falls back to the route height interpolated between route points. Row normals come from the route direction over ±1 m, so corners are mitred.
+  - The position and index buffers are allocated once per route, sized for the longest window (`(behindM + aheadM) / ribbonVertexSpacingM + 1` rows). When progress moves by `windowStepM` (10 m) or more, the rows are refilled in place and the draw range covers the active rows (no reallocation). The mesh is not frustum-culled because its contents move.
+  - The material is unlit, semi-transparent and bright orange, with `depthWrite: false`, `fog: false` and `polygonOffset` (factor −2, units −2), so it stays readable in fog and does not z-fight with the ground.
+  - Why draped: the 20 m route points alone left the strip under the 2 m terrain on 23 % of the Mera centreline (44 % with any part hidden, up to 1.3 m deep). Draped at 0.3 m it is hidden nowhere on the step-1 mesh.
 - **Markers**
   - One `InstancedMesh` for poles: a thin cylinder, 2 m tall.
   - One `InstancedMesh` for flags: a small red plane at the pole top.
@@ -129,7 +131,8 @@ One route per consecutive pair of walk-connected camps in the manifest order (fo
 ```ts
 guide: {
   ribbonWidthM: 1.2,
-  ribbonLiftM: 0.15,
+  ribbonLiftM: 0.3,
+  ribbonVertexSpacingM: 2,
   ribbonColor: 0xff8a1f,
   ribbonOpacity: 0.75,
   aheadM: 400,
@@ -168,7 +171,7 @@ guide: {
 
 ## 7. Performance
 
-- The ribbon is at most about 450 m of strip, or about 50 quads, in one draw call.
+- The ribbon is at most 450 m of strip: 226 rows × 3 vertices (678 vertices, 900 triangles) in one draw call. A refill (every 10 m of progress) does 678 `heightAt` calls into a preallocated buffer.
 - Markers take two instanced draw calls.
 - `progressAlong` runs once per frame: a linear scan over at most ~300 points, which costs microseconds. It is acceptable without spatial indexing.
 - No changes to the terrain streaming.

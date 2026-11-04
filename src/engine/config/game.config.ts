@@ -78,7 +78,8 @@ export const GAME_CONFIG = {
   hud: { publishIntervalMs: 100, toastMs: 3000 },
   guide: {
     ribbonWidthM: 1.2,
-    ribbonLiftM: 0.15,
+    ribbonLiftM: 0.3,
+    ribbonVertexSpacingM: 2,
     ribbonColor: 0xff8a1f,
     ribbonOpacity: 0.75,
     aheadM: 400,

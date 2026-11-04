@@ -170,7 +170,7 @@ export class Game {
     const visual = await PlayerVisual.load(this.scene, o.characterUrl, cfg.player.heightM);
     this.cleanup.push(() => visual.dispose());
 
-    const guide = new RouteGuide(this.scene);
+    const guide = new RouteGuide(this.scene, (x, z) => sampler.heightAt(x, z));
     this.cleanup.push(() => guide.dispose());
 
     this.w = {
