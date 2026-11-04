@@ -456,6 +456,7 @@ def find_route(
     max_slope_deg: float = 33.0,
     point_spacing_m: float = 20.0,
     cell_slope: np.ndarray | None = None,
+    max_lookahead: int = 250,
 ) -> list[list[float]]:
     """Walkable route between two full-resolution cells as [x, y, z] world points.
 
@@ -530,14 +531,7 @@ def find_route(
             return False
         return not steep[r, c].any()
 
-    kept = [pts[0]]
-    i = 0
-    while i < len(pts) - 1:
-        j = i + 1
-        while j + 1 < len(pts) and clear(pts[i], pts[j + 1]):
-            j += 1
-        kept.append(pts[j])
-        i = j
+    kept = string_pull(pts, clear, max_lookahead)
 
     xz: list[tuple[float, float]] = []
     for a, b in zip(kept, kept[1:]):
@@ -550,6 +544,28 @@ def find_route(
     return [[round(x, 1), round(float(y), 1), round(z, 1)] for (x, z), y in zip(xz, ys)]
 
 
+def string_pull(
+    points: list,
+    clear,
+    max_lookahead: int = 250,
+) -> list:
+    """Smooth a path: from each kept point, keep the farthest of the next max_lookahead
+    points that clear(kept, candidate) accepts, scanning from far to near (so a shortcut
+    blocked near the start does not hide a farther visible point). The next point is
+    always reachable, so this always ends at the last point."""
+    kept = [points[0]]
+    i = 0
+    while i < len(points) - 1:
+        j = i + 1
+        for k in range(min(len(points) - 1, i + max_lookahead), i + 1, -1):
+            if clear(points[i], points[k]):
+                j = k
+                break
+        kept.append(points[j])
+        i = j
+    return kept
+
+
 def route_length(points: list[list[float]]) -> float:
     """3D length of a route polyline in metres."""
     return float(
@@ -558,21 +574,36 @@ def route_length(points: list[list[float]]) -> float:
 
 
 def route_markers(
-    points: list[list[float]], every_m: float = 100.0, turn_deg: float = 30.0, end_clear_m: float = 25.0
+    points: list[list[float]],
+    every_m: float = 100.0,
+    turn_deg: float = 30.0,
+    end_clear_m: float = 25.0,
+    min_gap_m: float = 30.0,
 ) -> list[list[float]]:
-    """Trail-marker positions: one every every_m of horizontal route length plus one
-    at each vertex where the heading changes by more than turn_deg, skipping markers
-    within end_clear_m of either end and duplicates closer than 1 m."""
+    """Trail-marker positions: one at each vertex where the heading changes by more than
+    turn_deg, and distance markers every every_m of horizontal route length counted from
+    the start or from the last turn marker. A distance marker within min_gap_m (along the
+    route) of the previous marker is skipped, and one within min_gap_m before a turn
+    marker is replaced by it, so only turn markers come closer than min_gap_m. No marker within end_clear_m of either end,
+    and no duplicates closer than 1 m. The y values are interpolated between points;
+    build_routes replaces them with terrain heights."""
     seg = [math.hypot(b[0] - a[0], b[2] - a[2]) for a, b in zip(points, points[1:])]
     total = sum(seg)
     out: list[list[float]] = []
+    last_at = -math.inf
+    last_is_distance = False
 
-    def add(p: list[float], dist: float) -> None:
+    def add(p: list[float], dist: float, turn: bool) -> bool:
+        nonlocal last_at, last_is_distance
         if dist < end_clear_m or total - dist < end_clear_m:
-            return
+            return False
         if out and math.hypot(out[-1][0] - p[0], out[-1][2] - p[2]) < 1.0:
-            return
+            return False
+        if turn and last_is_distance and dist - last_at < min_gap_m:
+            out.pop()  # the turn marker replaces a distance marker just before it
         out.append([round(p[0], 1), round(p[1], 1), round(p[2], 1)])
+        last_at, last_is_distance = dist, not turn
+        return True
 
     def heading(a: list[float], b: list[float]) -> float:
         return math.atan2(b[2] - a[2], b[0] - a[0])
@@ -583,11 +614,12 @@ def route_markers(
         if i > 0 and length > 0 and seg[i - 1] > 0:
             turn = heading(a, b) - heading(points[i - 1], a)
             turn = abs((turn + math.pi) % (2 * math.pi) - math.pi)
-            if math.degrees(turn) > turn_deg:
-                add(a, dist)
+            if math.degrees(turn) > turn_deg and add(a, dist, turn=True):
+                next_mark = dist + every_m
         while length > 0 and next_mark <= dist + length + 1e-9:
             t = (next_mark - dist) / length
-            add([a[k] + (b[k] - a[k]) * t for k in range(3)], next_mark)
+            if next_mark - last_at >= min_gap_m:
+                add([a[k] + (b[k] - a[k]) * t for k in range(3)], next_mark, turn=False)
             next_mark += every_m
         dist += length
     return out
@@ -631,10 +663,22 @@ def build_routes(
                 "to": b_id,
                 "lengthM": float(round(route_length(points))),
                 "points": points,
-                "markers": route_markers(points),
+                "markers": terrain_markers(h, spacing_m, origin_m, route_markers(points)),
             }
         )
     return routes
+
+
+def terrain_markers(
+    h: np.ndarray, spacing_m: float, origin_m: float, markers: list[list[float]]
+) -> list[list[float]]:
+    """Markers with y set to the full-resolution terrain height at their x/z."""
+    if not markers:
+        return []
+    rows = np.array([(m[2] - origin_m) / spacing_m for m in markers])
+    cols = np.array([(m[0] - origin_m) / spacing_m for m in markers])
+    ys = bilinear_sample(h, rows, cols)
+    return [[m[0], round(float(y), 1), m[2]] for m, y in zip(markers, ys)]
 
 
 def cell_to_world(rc: tuple[int, int], origin_m: float, spacing_m: float, h: np.ndarray) -> list[float]:
@@ -709,3 +753,4 @@ def write_terrain(
         manifest["routeMaxSlopeDeg"] = route_max_slope_deg
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
+

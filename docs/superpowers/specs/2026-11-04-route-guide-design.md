@@ -38,9 +38,9 @@ Players cannot tell where to go. The HUD has no direction, and on Mera Peak the 
   - Step cost = horizontal step length × (1 + (blockSlopeDeg / routeMaxSlopeDeg)²), where blockSlopeDeg is the destination block's max slope.
   - Blocks at or above `routeMaxSlopeDeg` are impassable.
   - Heuristic = straight-line distance (admissible, because the cost multiplier is ≥ 1).
-- Smoothing ("string pulling"): from each kept point, skip ahead to the farthest later point whose straight segment crosses only 2 m cells below `routeMaxSlopeDeg` (`segment_cells`: every cell the segment passes through, exactly). Then resample the smoothed polyline at ≤ 20 m spacing.
+- Smoothing ("string pulling", `string_pull`): from each kept point, look at the next 250 path points from the farthest back to the nearest and keep the first whose straight segment crosses only 2 m cells below `routeMaxSlopeDeg` (`segment_cells`: every cell the segment passes through, exactly). Scanning far to near means a blocked shortcut close by does not hide a farther visible point. Then resample the smoothed polyline at ≤ 20 m spacing.
 - Heights: each point's `y` is the full-resolution (2 m) height at that x/z.
-- Markers: one every 100 m of route length, plus one at every vertex where the route heading changes by more than 30°. No marker within 25 m of the start or the end camp.
+- Markers: one at every vertex where the route heading changes by more than 30°, plus distance markers every 100 m of route length counted from the start or from the last turn marker. A distance marker within 30 m of the previous marker is skipped, and one within 30 m before a turn marker is replaced by it, so only turn markers come closer than 30 m (min gap on Mera: 38 m). No marker within 25 m of the start or the end camp. Marker `y` is the full-resolution terrain height at the marker (bilinear), not interpolated between route points.
 - Failure: if no path exists, raise a clear error; `bake.py` exits non-zero.
 
 ### 3.2 Which routes are generated
@@ -124,6 +124,8 @@ One route per consecutive pair of walk-connected camps in the manifest order (fo
 ### 4.5 HUD — `src/ui/Hud.tsx`
 
 - At the top centre: an arrow rotated by `bearingRad`, the label, and the distance underneath.
+  - The arrow's rotation is unwrapped (`src/ui/unwrapAngle.ts`): each bearing is taken the short way from the previous rotation, so when the bearing crosses ±π the CSS transition turns ≤ π instead of spinning the long way.
+  - Toasts sit below the guide (`top: 124px`; the guide with its warning is about 94 px tall from 18 px).
   - Under 1,000 m the distance shows as `850 m`; from 1,000 m up it shows as `3.4 km`.
   - The element carries `data-testid="guide"`.
 - When `offRoute` is true, the text reads "Off route — follow the arrow" in a warning colour.

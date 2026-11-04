@@ -1,9 +1,18 @@
+import { useRef } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '../state/gameStore';
 import { formatDistance } from './formatDistance';
+import { unwrapAngle } from './unwrapAngle';
 
 export function Hud() {
   const s = useStore(gameStore);
+  // Unwrapped arrow rotation: each bearing is taken the short way from the last one.
+  // Idempotent for a repeated bearing, so a double render (StrictMode) is harmless.
+  const arrowRad = useRef<number | null>(null);
+  if (s.guide) {
+    const prev = arrowRad.current;
+    arrowRad.current = prev === null ? s.guide.bearingRad : unwrapAngle(prev, s.guide.bearingRad);
+  }
   return (
     <div className="hud" data-testid="hud">
       <div className="hud__panel">
@@ -33,7 +42,7 @@ export function Hud() {
         >
           <div
             className="hud__guide-arrow"
-            style={{ transform: `rotate(${s.guide.bearingRad}rad)` }}
+            style={{ transform: `rotate(${arrowRad.current}rad)` }}
             aria-hidden="true"
           >
             ▲

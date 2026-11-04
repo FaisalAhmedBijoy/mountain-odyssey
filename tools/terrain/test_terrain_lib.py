@@ -26,9 +26,11 @@ from terrain_lib import (
     route_length,
     route_markers,
     route_max_slope,
+    segment_cells,
     slope_deg,
     spawn_is_walkable,
     split_tiles,
+    string_pull,
     synthetic_heightmap,
     upsample,
     validate_camps,
@@ -530,3 +532,80 @@ def test_route_max_slope_checks_every_cell_a_segment_crosses():
     worst, x, z = route_max_slope(seg, cs, 2.0, 0.0)
     assert worst == 40.0
     assert 10.0 <= x <= 12.0 and 10.0 <= z <= 12.0
+
+
+def test_route_markers_restart_the_count_after_a_turn_and_skip_close_distance_markers():
+    # 80 m north, then east to x = 400 (480 m). The turn marker at 80 m restarts the
+    # 100 m count, so the next marker is at 180 m, not 100 m (20 m after the turn).
+    turn_early = [[0.0, 0.0, -20.0 * i] for i in range(5)] + [[20.0 * i, 0.0, -80.0] for i in range(1, 21)]
+    assert [(round(p[0]), round(p[2])) for p in route_markers(turn_early)] == [(0, -80), (100, -80), (200, -80), (300, -80)]
+    # 110 m north then east: the distance marker at 100 m is dropped for the turn marker
+    # 10 m later, then the count restarts: 210 m, 310 m.
+    turn_late = [[0.0, 0.0, -10.0 * i] for i in range(12)] + [[20.0 * i, 0.0, -110.0] for i in range(1, 16)]
+    assert [(round(p[0]), round(p[2])) for p in route_markers(turn_late)] == [(0, -110), (100, -110), (200, -110)]
+
+
+def _along(points, p, start=0):
+    """Horizontal distance along the polyline to point p (on it), searching from segment start."""
+    dist = sum(math.hypot(b[0] - a[0], b[2] - a[2]) for a, b in zip(points[:start], points[1 : start + 1]))
+    for i in range(start, len(points) - 1):
+        a, b = points[i], points[i + 1]
+        seg = math.hypot(b[0] - a[0], b[2] - a[2])
+        t = ((p[0] - a[0]) * (b[0] - a[0]) + (p[2] - a[2]) * (b[2] - a[2])) / (seg * seg)
+        q = (a[0] + (b[0] - a[0]) * t, a[2] + (b[2] - a[2]) * t)
+        if -1e-3 <= t <= 1 + 1e-3 and math.hypot(q[0] - p[0], q[1] - p[2]) < 0.2:
+            return dist + seg * min(max(t, 0.0), 1.0), i
+        dist += seg
+    raise AssertionError(f"marker {p} is not on the route")
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_only_turn_markers_come_closer_than_30_m_to_each_other(seed):
+    rng = np.random.default_rng(seed)
+    pts, heading = [[0.0, 0.0, 0.0]], 0.0
+    for _ in range(150):  # 20 m legs with random turns of up to +/-50 degrees
+        heading += math.radians(rng.uniform(-50.0, 50.0)) if rng.random() < 0.3 else 0.0
+        pts.append([pts[-1][0] + 20.0 * math.sin(heading), 0.0, pts[-1][2] - 20.0 * math.cos(heading)])
+    turns = {
+        (round(b[0], 1), round(b[2], 1))
+        for a, b, c in zip(pts, pts[1:], pts[2:])
+        if abs((math.atan2(c[2] - b[2], c[0] - b[0]) - math.atan2(b[2] - a[2], b[0] - a[0]) + math.pi)
+               % (2 * math.pi) - math.pi) > math.radians(30.0)
+    }
+    markers = route_markers(pts)
+    assert len(markers) > 10
+    prev, prev_turn, seg = None, False, 0
+    for m in markers:
+        at, seg = _along(pts, m, seg)
+        is_turn = (m[0], m[2]) in turns
+        if prev is not None and not (is_turn and prev_turn):
+            assert at - prev >= 30.0 - 0.2
+        prev, prev_turn = at, is_turn
+
+
+def test_build_routes_puts_markers_on_the_terrain():
+    n = 401
+    rows = np.repeat(np.arange(n, dtype=np.float64)[:, None], n, axis=1)
+    h = (5000.0 + 2.0 * np.sin(rows * 2.0 / 7.0)).astype(np.float32)  # 44 m waves, ~16 degrees
+    wm = walkable_map(h, ROUTE_SPACING, 30.0, 8.0)
+    # 630 m, so the 20 m route points (19.7 m apart) do not land on the 100 m marks.
+    (route,) = build_routes(h, ROUTE_SPACING, ROUTE_ORIGIN, wm, [("a", ROUTE_START), ("b", (45, 200))])
+    assert route["markers"]
+    for x, y, z in route["markers"]:
+        terrain = bilinear_sample(h, np.array([(z - ROUTE_ORIGIN) / 2.0]), np.array([(x - ROUTE_ORIGIN) / 2.0]))[0]
+        assert y == pytest.approx(terrain, abs=0.051)
+    # Interpolating between the 20 m route points would miss the waves by up to ~2 m.
+    assert max(abs(m[1] - 5000.0) for m in route["markers"]) > 0.5
+
+
+def test_string_pull_keeps_the_farthest_visible_point_not_the_first_blocked_one():
+    cs = np.zeros((30, 30), np.float32)
+    cs[7, 7] = 45.0  # steep cell at x, z in [14, 16): blocks A -> C but not A -> D
+    def clear(a, b):
+        r, c, _, _ = segment_cells(a, b, 0.0, 2.0)
+        return not (cs[r, c] >= 33.0).any()
+
+    a, b, c, d = (0.5, 0.5), (20.5, 0.5), (20.5, 20.5), (40.5, 20.5)
+    assert not clear(a, c) and clear(a, d)
+    assert string_pull([a, b, c, d], clear) == [a, d]
+    assert string_pull([a, b, c, d], clear, max_lookahead=2) == [a, b, d]
