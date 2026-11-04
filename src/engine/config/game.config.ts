@@ -76,4 +76,18 @@ export const GAME_CONFIG = {
   },
   world: { skyColor: 0xa9c4dd, fogNear: 800, fogFar: 7000, sunDirection: [0.4, 0.8, 0.3] },
   hud: { publishIntervalMs: 100, toastMs: 3000 },
+  guide: {
+    ribbonWidthM: 1.2,
+    ribbonLiftM: 0.15,
+    ribbonColor: 0xff8a1f,
+    ribbonOpacity: 0.75,
+    aheadM: 400,
+    behindM: 50,
+    windowStepM: 10,
+    lookAheadM: 30,
+    offRouteThresholdM: 40,
+    markerPoleHeightM: 2,
+    markerPoleColor: 0x8b6b3d,
+    markerFlagColor: 0xd7263d,
+  },
 } as const;

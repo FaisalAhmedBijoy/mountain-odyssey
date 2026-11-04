@@ -8,6 +8,7 @@ export const CONTROLS = {
   jump: ['Space'],
   grab: ['KeyE'],
   cameraDistance: ['KeyC'],
+  toggleRoute: ['KeyT'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Action = keyof typeof CONTROLS;
