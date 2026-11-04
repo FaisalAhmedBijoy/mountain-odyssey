@@ -5,6 +5,7 @@ sits at x = origin + c * spacing, z = origin + r * spacing. Row 0 is the north e
 """
 from __future__ import annotations
 
+import heapq
 import json
 import math
 from dataclasses import dataclass
@@ -348,6 +349,186 @@ def validate_camps(
                 f"camps {a_id} and {b_id} are not connected by walkable ground "
                 f"(slope < {max_slope_deg} deg at {spacing_m * wm.step:g} m analysis spacing)"
             )
+
+
+class RouteError(CampPlacementError):
+    """No walkable route between two cells."""
+
+
+_NEIGHBOURS = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
+
+
+def find_route(
+    h: np.ndarray,
+    spacing_m: float,
+    origin_m: float,
+    wm: WalkableMap,
+    start_rc: tuple[int, int],
+    goal_rc: tuple[int, int],
+    *,
+    max_slope_deg: float = 30.0,
+    point_spacing_m: float = 20.0,
+    check_step_m: float = 4.0,
+) -> list[list[float]]:
+    """Walkable route between two full-resolution cells as [x, y, z] world points.
+
+    A* runs on the walkable map's coarse grid (8-connected; step cost = step length x
+    (1 + (slope / max_slope_deg)^2); cells at or above max_slope_deg are impassable).
+    The cell path is string-pulled (a shortcut is kept only when the straight segment
+    stays on walkable cells, sampled every check_step_m) and resampled so consecutive
+    points are at most point_spacing_m apart. Heights come from the full-resolution
+    heightmap. Raises RouteError when the cells are not connected.
+    """
+    rows, cols = wm.slope.shape
+    walk_grid = wm.slope < max_slope_deg
+    walk = walk_grid.ravel().tolist()
+    cost = (1.0 + (wm.slope / max_slope_deg) ** 2).ravel().tolist()
+    cs = spacing_m * wm.step
+    s = wm.coarse(start_rc)
+    g = wm.coarse(goal_rc)
+    si, gi = s[0] * cols + s[1], g[0] * cols + g[1]
+    if not walk[si] or not walk[gi]:
+        raise RouteError("route start or end is not on walkable ground")
+
+    best = [math.inf] * (rows * cols)
+    came = [-1] * (rows * cols)
+    best[si] = 0.0
+    diag = math.sqrt(2.0)
+    heap = [(math.hypot(s[0] - g[0], s[1] - g[1]) * cs, 0.0, si)]
+    while heap:
+        _, d, i = heapq.heappop(heap)
+        if i == gi:
+            break
+        if d > best[i]:
+            continue
+        r, c = divmod(i, cols)
+        for dr, dc in _NEIGHBOURS:
+            nr, nc = r + dr, c + dc
+            if nr < 0 or nr >= rows or nc < 0 or nc >= cols:
+                continue
+            ni = nr * cols + nc
+            if not walk[ni]:
+                continue
+            nd = d + (diag if dr and dc else 1.0) * cs * cost[ni]
+            if nd < best[ni]:
+                best[ni] = nd
+                came[ni] = i
+                heapq.heappush(heap, (nd + math.hypot(nr - g[0], nc - g[1]) * cs, nd, ni))
+    if not math.isfinite(best[gi]):
+        raise RouteError("cells are not connected by walkable ground")
+
+    cells = [gi]
+    while cells[-1] != si:
+        cells.append(came[cells[-1]])
+    cells.reverse()
+
+    def to_xz(rc: tuple[int, int]) -> tuple[float, float]:
+        return origin_m + rc[1] * spacing_m, origin_m + rc[0] * spacing_m
+
+    inner = [to_xz((ci // cols * wm.step, ci % cols * wm.step)) for ci in cells[1:-1]]
+    pts = [to_xz(start_rc), *inner, to_xz(goal_rc)]
+
+    def clear(a: tuple[float, float], b: tuple[float, float]) -> bool:
+        n = max(1, int(math.ceil(math.hypot(b[0] - a[0], b[1] - a[1]) / check_step_m)))
+        for k in range(n + 1):
+            t = k / n
+            x = a[0] + (b[0] - a[0]) * t
+            z = a[1] + (b[1] - a[1]) * t
+            r = int(round((z - origin_m) / cs))
+            c = int(round((x - origin_m) / cs))
+            if r < 0 or r >= rows or c < 0 or c >= cols or not walk_grid[r, c]:
+                return False
+        return True
+
+    kept = [pts[0]]
+    i = 0
+    while i < len(pts) - 1:
+        j = i + 1
+        while j + 1 < len(pts) and clear(pts[i], pts[j + 1]):
+            j += 1
+        kept.append(pts[j])
+        i = j
+
+    xz: list[tuple[float, float]] = []
+    for a, b in zip(kept, kept[1:]):
+        n = max(1, int(math.ceil(math.hypot(b[0] - a[0], b[1] - a[1]) / point_spacing_m)))
+        xz.extend((a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n) for k in range(n))
+    xz.append(kept[-1])
+    rows_f = np.array([(z - origin_m) / spacing_m for _, z in xz])
+    cols_f = np.array([(x - origin_m) / spacing_m for x, _ in xz])
+    ys = bilinear_sample(h, rows_f, cols_f)
+    return [[round(x, 1), round(float(y), 1), round(z, 1)] for (x, z), y in zip(xz, ys)]
+
+
+def route_length(points: list[list[float]]) -> float:
+    """3D length of a route polyline in metres."""
+    return float(
+        sum(math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) for a, b in zip(points, points[1:]))
+    )
+
+
+def route_markers(
+    points: list[list[float]], every_m: float = 100.0, turn_deg: float = 30.0, end_clear_m: float = 25.0
+) -> list[list[float]]:
+    """Trail-marker positions: one every every_m of horizontal route length plus one
+    at each vertex where the heading changes by more than turn_deg, skipping markers
+    within end_clear_m of either end and duplicates closer than 1 m."""
+    seg = [math.hypot(b[0] - a[0], b[2] - a[2]) for a, b in zip(points, points[1:])]
+    total = sum(seg)
+    out: list[list[float]] = []
+
+    def add(p: list[float], dist: float) -> None:
+        if dist < end_clear_m or total - dist < end_clear_m:
+            return
+        if out and math.hypot(out[-1][0] - p[0], out[-1][2] - p[2]) < 1.0:
+            return
+        out.append([round(p[0], 1), round(p[1], 1), round(p[2], 1)])
+
+    def heading(a: list[float], b: list[float]) -> float:
+        return math.atan2(b[2] - a[2], b[0] - a[0])
+
+    dist = 0.0
+    next_mark = every_m
+    for i, (a, b, length) in enumerate(zip(points, points[1:], seg)):
+        if i > 0 and length > 0 and seg[i - 1] > 0:
+            turn = heading(a, b) - heading(points[i - 1], a)
+            turn = abs((turn + math.pi) % (2 * math.pi) - math.pi)
+            if math.degrees(turn) > turn_deg:
+                add(a, dist)
+        while length > 0 and next_mark <= dist + length + 1e-9:
+            t = (next_mark - dist) / length
+            add([a[k] + (b[k] - a[k]) * t for k in range(3)], next_mark)
+            next_mark += every_m
+        dist += length
+    return out
+
+
+def build_routes(
+    h: np.ndarray,
+    spacing_m: float,
+    origin_m: float,
+    wm: WalkableMap,
+    camps: list[tuple[str, tuple[int, int]]],
+    *,
+    max_slope_deg: float = 30.0,
+) -> list[dict]:
+    """One manifest route per pair of consecutive walk-connected camps."""
+    routes = []
+    for (a_id, a_rc), (b_id, b_rc) in zip(camps, camps[1:]):
+        try:
+            points = find_route(h, spacing_m, origin_m, wm, a_rc, b_rc, max_slope_deg=max_slope_deg)
+        except RouteError as err:
+            raise RouteError(f"no walkable route from {a_id} to {b_id}: {err}") from err
+        routes.append(
+            {
+                "from": a_id,
+                "to": b_id,
+                "lengthM": float(round(route_length(points))),
+                "points": points,
+                "markers": route_markers(points),
+            }
+        )
+    return routes
 
 
 def cell_to_world(rc: tuple[int, int], origin_m: float, spacing_m: float, h: np.ndarray) -> list[float]:

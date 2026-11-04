@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from pathlib import Path
 
@@ -7,17 +8,22 @@ import pytest
 
 from terrain_lib import (
     GridSpec,
+    CampPlacementError,
+    RouteError,
     bilinear_sample,
+    build_routes,
     cell_to_world,
     detail_noise,
     downsample,
-    CampPlacementError,
+    find_route,
     find_summit,
     label_components,
     latlon_bounds,
     place_camps,
     quantize,
     resample_to_metric,
+    route_length,
+    route_markers,
     slope_deg,
     spawn_is_walkable,
     split_tiles,
@@ -309,3 +315,72 @@ def test_contract_fixture_matches_current_bake(tmp_path):
     assert json.loads((FIXTURE_DIR / "manifest.json").read_text()) == manifest
     for name in ["backdrop.u16", *(f"tiles/{tx}_{tz}.u16" for tx in range(2) for tz in range(2))]:
         assert (FIXTURE_DIR / name).read_bytes() == (out / name).read_bytes(), name
+
+
+def _route_plateaus(connected: bool) -> np.ndarray:
+    """401 x 401 cells at 2 m: a 5000 m plateau in the south, a 5100 m plateau in the
+    north, joined by a ~22.6 degree ramp (connected) or a 100 m cliff (not connected)."""
+    n = 401
+    rows = np.repeat(np.arange(n, dtype=np.float64)[:, None], n, axis=1)
+    if connected:
+        h = np.interp(rows.ravel(), [140.0, 260.0], [5100.0, 5000.0]).reshape(n, n)
+    else:
+        h = np.where(rows < 200, 5100.0, 5000.0)
+    return h.astype(np.float32)
+
+
+ROUTE_START, ROUTE_GOAL, ROUTE_ORIGIN, ROUTE_SPACING = (360, 200), (40, 200), -400.0, 2.0
+
+
+def test_find_route_follows_walkable_ramp():
+    h = _route_plateaus(True)
+    wm = walkable_map(h, ROUTE_SPACING, 30.0, 8.0)
+    pts = find_route(h, ROUTE_SPACING, ROUTE_ORIGIN, wm, ROUTE_START, ROUTE_GOAL)
+    start = cell_to_world(ROUTE_START, ROUTE_ORIGIN, ROUTE_SPACING, h)
+    goal = cell_to_world(ROUTE_GOAL, ROUTE_ORIGIN, ROUTE_SPACING, h)
+    assert pts[0][0] == pytest.approx(start[0], abs=0.1) and pts[0][2] == pytest.approx(start[2], abs=0.1)
+    assert pts[-1][0] == pytest.approx(goal[0], abs=0.1) and pts[-1][2] == pytest.approx(goal[2], abs=0.1)
+    steps = [math.hypot(b[0] - a[0], b[2] - a[2]) for a, b in zip(pts, pts[1:])]
+    assert max(steps) <= 20.0 + 1e-6
+    slope = slope_deg(h, ROUTE_SPACING)
+    for x, _, z in pts:
+        r = int(round((z - ROUTE_ORIGIN) / ROUTE_SPACING))
+        c = int(round((x - ROUTE_ORIGIN) / ROUTE_SPACING))
+        assert slope[r, c] < 30.0
+    # The ramp is straight, so the smoothed route is a straight 640 m line rising 100 m.
+    assert route_length(pts) == pytest.approx(math.hypot(640.0, 100.0), rel=0.02)
+
+
+def test_find_route_raises_when_a_cliff_separates_the_cells():
+    h = _route_plateaus(False)
+    wm = walkable_map(h, ROUTE_SPACING, 30.0, 8.0)
+    with pytest.raises(RouteError, match="not connected"):
+        find_route(h, ROUTE_SPACING, ROUTE_ORIGIN, wm, ROUTE_START, ROUTE_GOAL)
+
+
+def test_route_markers_every_100_m_and_at_turns():
+    straight = [[0.0, 0.0, -20.0 * i] for i in range(51)]  # 1000 m north
+    assert [round(-p[2]) for p in route_markers(straight)] == [100, 200, 300, 400, 500, 600, 700, 800, 900]
+    corner = [[20.0 * i, 0.0, 0.0] for i in range(16)] + [[300.0, 0.0, 20.0 * i] for i in range(1, 16)]
+    assert [(round(p[0]), round(p[2])) for p in route_markers(corner)] == [
+        (100, 0), (200, 0), (300, 0), (300, 100), (300, 200)
+    ]
+    short = [[0.0, 0.0, -20.0 * i] for i in range(7)]  # 120 m: the 100 m mark is 20 m from the end
+    assert route_markers(short) == []
+
+
+def test_build_routes_names_the_camps_when_no_route_exists():
+    h = _route_plateaus(False)
+    wm = walkable_map(h, ROUTE_SPACING, 30.0, 8.0)
+    with pytest.raises(RouteError, match="no walkable route from a to b"):
+        build_routes(h, ROUTE_SPACING, ROUTE_ORIGIN, wm, [("a", ROUTE_START), ("b", ROUTE_GOAL)])
+
+
+def test_build_routes_returns_manifest_ready_dicts():
+    h = _route_plateaus(True)
+    wm = walkable_map(h, ROUTE_SPACING, 30.0, 8.0)
+    (route,) = build_routes(h, ROUTE_SPACING, ROUTE_ORIGIN, wm, [("a", ROUTE_START), ("b", ROUTE_GOAL)])
+    assert set(route) == {"from", "to", "lengthM", "points", "markers"}
+    assert (route["from"], route["to"]) == ("a", "b")
+    assert route["lengthM"] == float(round(route_length(route["points"])))
+    assert route["markers"] == route_markers(route["points"])
