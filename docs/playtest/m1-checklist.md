@@ -11,7 +11,7 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] Following the orange ribbon from Khare reaches High Camp on Mera without sliding or climbing.
 - [ ] `T` hides and shows the ribbon; flags and the HUD arrow stay visible.
 - [ ] Walk, run, jump and land feel responsive; no sliding on flat ground.
-- [ ] Slopes ≥ 30° make the character slide.
+- [ ] Slopes ≥ 33° make the character slide.
 - [ ] Khare spawn is on walkable ground (no slide on spawn).
 - [ ] High Camp is reachable on foot from Khare without climbing more than one stamina bar.
 - [ ] Snowline colour change is visible above ~5,300 m.
