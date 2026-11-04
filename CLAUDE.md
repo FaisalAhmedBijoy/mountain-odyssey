@@ -31,6 +31,8 @@ npm run terrain:test   # bake synthetic test-peak  -> public/terrain/test-peak
 npm run terrain:mera   # bake Mera Peak from Copernicus DEM (network, ~25 MB) -> public/terrain/mera-peak
 ```
 
+Production: pushes to `main` that pass CI are deployed to GitHub Pages (`.github/workflows/deploy.yml`, site under `/mountain-odyssey/`). Static files in `public/` must be referenced through `assetUrl()` (`src/app/assetUrl.ts`), never with a leading `/`, so they resolve under that base path. Local check: `VITE_BASE=/mountain-odyssey/ npm run build && npx vite preview --base /mountain-odyssey/`.
+
 Load a specific mountain with `?mountain=<id>` (e.g. `/?mountain=test-peak`); default is `mera-peak`.
 
 ## Architecture

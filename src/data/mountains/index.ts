@@ -10,6 +10,7 @@ export interface MountainDef {
     location: { lat: number; lon: number };
     sources: string[];
   };
+  /** Path under `public/`, without a leading slash; resolve with `assetUrl`. */
   terrainBaseUrl: string;
 }
 

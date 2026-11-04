@@ -258,7 +258,7 @@ All keys are rebindable in Settings.
 | Unit tests | Vitest |
 | End-to-end tests | Playwright |
 | Terrain tooling | Python 3 (`rasterio`, `numpy`, `Pillow`), offline only |
-| Hosting | Cloudflare Pages (static) |
+| Hosting | GitHub Pages (static), deployed by GitHub Actions |
 | CI | GitHub Actions |
 
 ### 6.2 Layer boundaries
@@ -483,7 +483,7 @@ CI (GitHub Actions) runs lint, type-check, unit and integration tests and a prod
 
 ## 11. Deployment, legal and credits
 
-- **Hosting:** Cloudflare Pages. Terrain tiles and hashed assets are served with long-lived immutable cache headers.
+- **Hosting:** GitHub Pages at `https://faisalahmedbijoy.github.io/mountain-odyssey/`. The `Deploy to GitHub Pages` workflow runs after CI passes on `main` (or manually): it bakes test-peak and Mera Peak, builds with `VITE_BASE=/mountain-odyssey/`, and publishes `dist/`. GitHub Pages does not allow custom cache headers, so the long-lived immutable caching planned for Cloudflare is not available; hashed JS/CSS file names still make updates safe. (Changed from Cloudflare Pages on 2026-11-04 to keep everything in GitHub.)
 - **DEM attribution:** "Contains modified Copernicus DEM data" (displayed in Credits and the Mountain Details screen).
 - **Asset licences:** CC0 and Mixamo terms; all listed in `CREDITS.md`.
 - **Disclaimer** (shown in Mountain Details and Credits): "Routes are game-designed and inspired by real mountains. This game is not a guide for real-world climbing."

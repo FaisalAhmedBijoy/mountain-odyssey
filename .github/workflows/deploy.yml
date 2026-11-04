@@ -1,0 +1,66 @@
+name: Deploy to GitHub Pages
+
+# Publishes the game after CI passes on main (or on demand from the Actions tab).
+# Repository setting required once: Settings -> Pages -> Source -> "GitHub Actions".
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy pillow rasterio
+      - run: npm ci
+      - name: Bake terrain (synthetic test-peak + Mera Peak from Copernicus DEM)
+        run: |
+          npm run terrain:test
+          npm run terrain:mera
+      - name: Build for the /mountain-odyssey/ project path
+        run: npm run build
+        env:
+          VITE_BASE: /mountain-odyssey/
+      - name: Check the bundle contains the game data
+        run: |
+          test -f dist/index.html
+          test -f dist/models/RobotExpressive.glb
+          test -f dist/terrain/mera-peak/manifest.json
+          test -f dist/terrain/test-peak/manifest.json
+          grep -q '/mountain-odyssey/assets/' dist/index.html
+          du -sh dist
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

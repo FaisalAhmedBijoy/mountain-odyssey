@@ -5,8 +5,9 @@ import { Game } from '../engine/core/Game';
 import { initialHudState } from '../engine/core/hud';
 import { gameStore } from '../state/gameStore';
 import { Hud } from '../ui/Hud';
+import { assetUrl } from './assetUrl';
 
-const CHARACTER_URL = '/models/RobotExpressive.glb';
+const CHARACTER_URL = assetUrl('models/RobotExpressive.glb');
 
 export function GameView({ mountain }: { mountain: MountainDef }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,7 +26,7 @@ export function GameView({ mountain }: { mountain: MountainDef }) {
     let cancelled = false;
     Game.create({
       canvas,
-      terrainBaseUrl: mountain.terrainBaseUrl,
+      terrainBaseUrl: assetUrl(mountain.terrainBaseUrl),
       characterUrl: CHARACTER_URL,
       publish: (patch) => {
         if (!cancelled) gameStore.setState(patch);

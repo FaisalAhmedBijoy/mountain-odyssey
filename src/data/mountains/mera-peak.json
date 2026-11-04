@@ -7,5 +7,5 @@
     "location": { "lat": 27.7, "lon": 86.87 },
     "sources": ["Copernicus GLO-30 DEM"]
   },
-  "terrainBaseUrl": "/terrain/mera-peak"
+  "terrainBaseUrl": "terrain/mera-peak"
 }
