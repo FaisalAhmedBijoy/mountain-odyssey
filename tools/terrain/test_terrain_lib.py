@@ -12,6 +12,7 @@ from terrain_lib import (
     RouteError,
     bilinear_sample,
     build_routes,
+    cell_slope_deg,
     cell_to_world,
     detail_noise,
     downsample,
@@ -24,6 +25,7 @@ from terrain_lib import (
     resample_to_metric,
     route_length,
     route_markers,
+    route_max_slope,
     slope_deg,
     spawn_is_walkable,
     split_tiles,
@@ -401,3 +403,130 @@ def test_bake_synthetic_writes_a_route_through_the_south_ramp(tmp_path):
     ramp = [p for p in route["points"] if 280.0 <= p[2] <= 320.0]
     assert ramp and all(abs(p[0]) < 80.0 for p in ramp)
     assert json.loads((tmp_path / "manifest.json").read_text())["routes"] == m["routes"]
+
+
+def _max_bilinear_slope_along(pts, h, spacing=ROUTE_SPACING, origin=ROUTE_ORIGIN, step_m=0.25):
+    """Independent check: steepest bilinear slope in any 2 m cell the route passes through
+    (sampled every step_m), i.e. the steepest ground the engine can measure under it."""
+    worst = 0.0
+    for a, b in zip(pts, pts[1:]):
+        n = max(1, int(math.ceil(math.hypot(b[0] - a[0], b[2] - a[2]) / step_m)))
+        for k in range(n + 1):
+            x = a[0] + (b[0] - a[0]) * k / n
+            z = a[2] + (b[2] - a[2]) * k / n
+            r = min(int((z - origin) / spacing), h.shape[0] - 2)
+            c = min(int((x - origin) / spacing), h.shape[1] - 2)
+            q = h[r : r + 2, c : c + 2].astype(np.float64)
+            gx = np.abs(q[:, 1] - q[:, 0]).max() / spacing
+            gz = np.abs(q[1, :] - q[0, :]).max() / spacing
+            worst = max(worst, math.degrees(math.atan(math.hypot(gx, gz))))
+    return worst
+
+
+def _ridge_plain(gap: bool) -> np.ndarray:
+    """Flat 5000 m plain (401 x 401 at 2 m) crossed west-east by a 1.5 m ridge one sample
+    wide on row 201 (z = +2 m). The 8 m analysis grid (every 4th row) never samples it,
+    so it looks walkable there, but its 2 m cells are ~37 degrees. With gap=True the
+    ridge has a 60 m opening at cols 300..330 (x = +200..+260 m)."""
+    h = np.full((401, 401), 5000.0, np.float32)
+    h[201, :] += 1.5
+    if gap:
+        h[201, 300:331] = 5000.0
+    return h
+
+
+def test_cell_slope_deg_is_the_steepest_bilinear_slope_in_each_cell():
+    h = np.array([[0.0, 1.0, 1.0], [0.0, 3.0, 1.0], [0.0, 0.0, 0.0]], np.float32)
+    cs = cell_slope_deg(h, 2.0)
+    assert cs.shape == (2, 2)
+    # cell (0, 0): steepest x edge |3 - 0| = 3, steepest z edge |3 - 1| = 2 -> atan(hypot(1.5, 1))
+    assert cs[0, 0] == pytest.approx(math.degrees(math.atan(math.hypot(1.5, 1.0))), abs=1e-4)
+    assert cs[1, 0] == pytest.approx(math.degrees(math.atan(math.hypot(1.5, 1.5))), abs=1e-4)
+
+
+def test_8m_grid_cannot_see_the_ridge():
+    wm = walkable_map(_ridge_plain(False), ROUTE_SPACING, 30.0, 8.0)
+    assert wm.label_at(ROUTE_START) == wm.label_at(ROUTE_GOAL) != 0
+    assert cell_slope_deg(_ridge_plain(False), ROUTE_SPACING).max() > 36.0
+
+
+def test_find_route_detours_around_a_2m_feature_steeper_than_the_limit():
+    h = _ridge_plain(True)
+    wm = walkable_map(h, ROUTE_SPACING, 30.0, 8.0)
+    pts = find_route(h, ROUTE_SPACING, ROUTE_ORIGIN, wm, ROUTE_START, ROUTE_GOAL, max_slope_deg=33.0)
+    assert _max_bilinear_slope_along(pts, h) < 33.0
+    crossings = [
+        a[0] + (b[0] - a[0]) * (2.0 - a[2]) / (b[2] - a[2])
+        for a, b in zip(pts, pts[1:])
+        if (a[2] - 2.0) * (b[2] - 2.0) <= 0 and a[2] != b[2]
+    ]
+    assert crossings and all(200.0 < x < 260.0 for x in crossings)
+
+
+def test_find_route_raises_when_a_2m_feature_blocks_every_path():
+    h = _ridge_plain(False)
+    wm = walkable_map(h, ROUTE_SPACING, 30.0, 8.0)
+    with pytest.raises(RouteError, match="not connected"):
+        find_route(h, ROUTE_SPACING, ROUTE_ORIGIN, wm, ROUTE_START, ROUTE_GOAL, max_slope_deg=33.0)
+
+
+def test_route_max_slope_reports_the_steepest_cell_and_its_location():
+    h = _ridge_plain(False)
+    straight = [[0.0, 5000.0, 300.0], [0.0, 5000.0, -300.0]]  # crosses the ridge at z = +2
+    worst, x, z = route_max_slope(straight, cell_slope_deg(h, ROUTE_SPACING), ROUTE_SPACING, ROUTE_ORIGIN)
+    assert worst > 36.0
+    assert x == pytest.approx(0.0) and 0.0 <= z <= 4.0
+    flat = [[0.0, 5000.0, 300.0], [0.0, 5000.0, 100.0]]
+    assert route_max_slope(flat, cell_slope_deg(h, ROUTE_SPACING), ROUTE_SPACING, ROUTE_ORIGIN)[0] == 0.0
+
+
+def test_build_routes_rejects_a_route_steeper_than_the_limit(monkeypatch):
+    import terrain_lib
+
+    h = _ridge_plain(False)
+    wm = walkable_map(h, ROUTE_SPACING, 30.0, 8.0)
+    straight = [[0.0, 5000.0, 320.0], [0.0, 5000.0, -320.0]]
+    monkeypatch.setattr(terrain_lib, "find_route", lambda *a, **k: straight)
+    with pytest.raises(RouteError, match=r"a to b .*steeper than 33 deg at x=0, z=[0-4]"):
+        build_routes(h, ROUTE_SPACING, ROUTE_ORIGIN, wm, [("a", ROUTE_START), ("b", ROUTE_GOAL)],
+                     max_slope_deg=33.0)
+
+
+def test_route_slope_limit_is_33_degrees_and_written_to_the_manifest(tmp_path):
+    from bake import CAMP_PLACEMENT_DEFAULTS, bake_synthetic
+
+    assert CAMP_PLACEMENT_DEFAULTS["routeMaxSlopeDeg"] == 33.0
+    assert CAMP_PLACEMENT_DEFAULTS["maxWalkSlopeDeg"] == 30.0  # camps stay stricter
+    m = bake_synthetic(str(tmp_path))
+    assert m["routeMaxSlopeDeg"] == 33.0
+    h = synthetic_heightmap(1025, 2.0)
+    assert _max_bilinear_slope_along(m["routes"][0]["points"], h, 2.0, -1024.0) < 33.0
+
+
+def test_engine_heights_match_the_written_tiles(tmp_path):
+    """Routes are judged on the heights the engine decodes from the uint16 tiles, since
+    quantisation can move a 2 m cell's slope by ~1 degree on a 3 km height range."""
+    from terrain_lib import engine_heights
+
+    spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=4, spacing_m=2.0)
+    rng = np.random.default_rng(3)
+    h = (5000 + 3000 * rng.random((spec.samples, spec.samples))).astype(np.float32)
+    m = write_terrain(tmp_path, "demo", h, 2.0, 4, spec.origin, [], "Test", backdrop_spacing_m=4.0)
+    raw = np.frombuffer((tmp_path / "tiles" / "1_1.u16").read_bytes(), dtype="<u2").reshape(5, 5)
+    decoded = m["minHeightM"] + raw.astype(np.float64) / 65535 * (m["maxHeightM"] - m["minHeightM"])
+    np.testing.assert_allclose(engine_heights(h)[4:9, 4:9], decoded, atol=1e-3)
+    assert np.abs(engine_heights(h) - h).max() > 1e-3  # quantisation is visible
+
+
+def test_route_max_slope_checks_every_cell_a_segment_crosses():
+    """A segment that clips the corner of one steep cell for ~1 m is caught even though
+    samples every metre along it all miss that cell."""
+    cs = np.zeros((20, 20), np.float32)
+    cs[5, 5] = 40.0  # x, z in [10, 12)
+    seg = [[0.0, 0.0, 23.3], [23.3, 0.0, 0.0]]
+    n = math.ceil(math.hypot(23.3, 23.3))
+    t = np.arange(n + 1) / n
+    assert not ((23.3 * t >= 10) & (23.3 * t < 12) & (23.3 - 23.3 * t >= 10) & (23.3 - 23.3 * t < 12)).any()
+    worst, x, z = route_max_slope(seg, cs, 2.0, 0.0)
+    assert worst == 40.0
+    assert 10.0 <= x <= 12.0 and 10.0 <= z <= 12.0

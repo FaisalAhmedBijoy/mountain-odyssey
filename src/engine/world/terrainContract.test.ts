@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { GAME_CONFIG } from '../config/game.config';
 import { decodeHeights, parseManifest } from './terrainData';
 import { TerrainSampler } from './TerrainSampler';
 
@@ -55,5 +56,12 @@ describe('Python bake -> TerrainSampler axis contract', () => {
     for (const [x, y, z] of route.points) {
       expect(Math.abs(sampler.heightAt(x, z)! - y)).toBeLessThan(0.5);
     }
+  });
+
+  it('bakes routes with the same slope limit the engine walks at', () => {
+    const raw = JSON.parse(readFileSync(`${dir}manifest.json`, 'utf8')) as {
+      routeMaxSlopeDeg?: number;
+    };
+    expect(raw.routeMaxSlopeDeg).toBe(GAME_CONFIG.movement.maxWalkSlopeDeg);
   });
 });

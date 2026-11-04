@@ -32,8 +32,10 @@ describe('nextMoveState', () => {
     expect(nextMoveState('run', run, ctx({ stamina: 0 }), rules)).toBe('walk');
   });
 
-  it('slides on slopes of 30 degrees or more', () => {
+  it('slides on slopes at or above the 33 degree walk limit', () => {
     expect(nextMoveState('walk', input(), ctx({ groundSlopeDeg: 35 }), rules)).toBe('slide');
+    expect(nextMoveState('walk', input(), ctx({ groundSlopeDeg: 33 }), rules)).toBe('slide');
+    expect(nextMoveState('walk', input(), ctx({ groundSlopeDeg: 32 }), rules)).toBe('walk');
   });
 
   it('falls when not grounded', () => {

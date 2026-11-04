@@ -11,6 +11,7 @@
   "summitSearchRadiusM": 1500,
   "campPlacement": {
     "maxWalkSlopeDeg": 30,
+    "routeMaxSlopeDeg": 33,
     "analysisSpacingM": 8,
     "toleranceM": 100,
     "spawnRadiusM": 6

@@ -18,7 +18,7 @@ export const GAME_CONFIG = {
     climbSpeed: 0.5,
     jumpVelocity: 4.5,
     airControl: 0.3,
-    maxWalkSlopeDeg: 30,
+    maxWalkSlopeDeg: 33,
     maxRunSlopeDeg: 20,
     minClimbSlopeDeg: 50,
     runMinStamina: 10,

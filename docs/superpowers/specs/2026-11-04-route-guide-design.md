@@ -32,12 +32,13 @@ Players cannot tell where to go. The HUD has no direction, and on Mera Peak the 
 
 ### 3.1 Route search — `find_route` in `tools/terrain/terrain_lib.py`
 
-- Input: the walkable analysis grid already produced by `walkable_map` (8 m cells, walkable = slope < `maxWalkSlopeDeg`, default 30°), the camp cells from `place_camps`, and the full-resolution heightmap.
-- Algorithm: A* over 8-connected cells of the walkable grid.
-  - Step cost = horizontal step length × (1 + (slopeDeg / maxWalkSlopeDeg)²), where slopeDeg is the slope of the destination cell.
-  - Non-walkable cells are impassable.
+- Input: the walkable analysis grid already produced by `walkable_map` (8 m cells; only its grid is used), the camp cells from `place_camps`, the full-resolution heightmap as the engine decodes it (`engine_heights`: quantised to the uint16 tiles), and the route slope limit `routeMaxSlopeDeg` (default 33°, overridable per mountain under `campPlacement`; it must equal `GAME_CONFIG.movement.maxWalkSlopeDeg`).
+- Slope is judged at full resolution. `cell_slope_deg` gives, for every 2 m cell, the steepest gradient of the bilinear surface over the cell (reached at a corner). It bounds both Rapier triangles of the cell and the slope `Player` samples from `TerrainSampler`, so ground below the limit there is walkable in the engine. The 8 m grid alone missed 2 m features: on Mera 5.1 % of the first route (203 m, max 33.8°) was steeper than 30° at 2 m.
+- Algorithm: A* over 8-connected cells of the coarse grid. Each coarse sample stands for the 4 × 4 block of 2 m cells around it, with the block's max cell slope (`block_max_slope`).
+  - Step cost = horizontal step length × (1 + (blockSlopeDeg / routeMaxSlopeDeg)²), where blockSlopeDeg is the destination block's max slope.
+  - Blocks at or above `routeMaxSlopeDeg` are impassable.
   - Heuristic = straight-line distance (admissible, because the cost multiplier is ≥ 1).
-- Smoothing ("string pulling"): from each kept point, skip ahead to the farthest later point whose straight segment crosses only walkable cells (sampled every 4 m). Then resample the smoothed polyline at ≤ 20 m spacing.
+- Smoothing ("string pulling"): from each kept point, skip ahead to the farthest later point whose straight segment crosses only 2 m cells below `routeMaxSlopeDeg` (`segment_cells`: every cell the segment passes through, exactly). Then resample the smoothed polyline at ≤ 20 m spacing.
 - Heights: each point's `y` is the full-resolution (2 m) height at that x/z.
 - Markers: one every 100 m of route length, plus one at every vertex where the route heading changes by more than 30°. No marker within 25 m of the start or the end camp.
 - Failure: if no path exists, raise a clear error; `bake.py` exits non-zero.
@@ -63,11 +64,14 @@ One route per consecutive pair of walk-connected camps in the manifest order (fo
 - `points` and `markers` are `[x, y, z]` world coordinates (x = east, z = south, y = up), rounded to 0.1 m.
 - `lengthM` is the polyline length in 3D, rounded to 1 m.
 - Existing manifest fields are unchanged. A manifest without `routes` remains valid.
+- `"routeMaxSlopeDeg": 33.0` (top level, written with `routes`) records the limit the routes were baked with. The Vitest contract test asserts that the committed fixture's value equals `GAME_CONFIG.movement.maxWalkSlopeDeg`, so the bake and the engine cannot drift apart.
 
 ### 3.4 Validation
 
 - The existing camp connectivity check stays.
 - The bake additionally fails if a route cannot be found between consecutive walk-connected camps.
+- After resampling, every 2 m cell each route passes through (an exact traversal, finer than sampling every 1 m) must be below `routeMaxSlopeDeg` on the engine heights; otherwise the bake fails with a `RouteError` naming the camps and the x/z of the steepest cell. The bake prints each route's max slope.
+- Camp placement and spawn neighbourhoods keep the stricter 30° (`campPlacement.maxWalkSlopeDeg`), so players never spawn near the slide threshold.
 - The synthetic test-peak must produce a `khare` → `high-camp` route through its south ramp.
 
 ## 4. Runtime (TypeScript engine)

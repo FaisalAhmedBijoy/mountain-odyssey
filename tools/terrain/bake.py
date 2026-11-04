@@ -16,12 +16,15 @@ from terrain_lib import (
     CampPlacementError,
     GridSpec,
     build_routes,
+    cell_slope_deg,
     cell_to_world,
     detail_noise,
+    engine_heights,
     find_summit,
     latlon_bounds,
     place_camps,
     resample_to_metric,
+    route_max_slope,
     synthetic_heightmap,
     upsample,
     validate_camps,
@@ -31,9 +34,24 @@ from terrain_lib import (
 
 TEST_PEAK_SPEC = GridSpec(0.0, 0.0, tiles=4, tile_cells=256, spacing_m=2.0)
 
-# Defaults for the "campPlacement" block of a bake config. maxWalkSlopeDeg must match
-# GAME_CONFIG.movement.maxWalkSlopeDeg in the engine.
-CAMP_PLACEMENT_DEFAULTS = {"maxWalkSlopeDeg": 30.0, "analysisSpacingM": 8.0, "toleranceM": 100.0, "spawnRadiusM": 6.0}
+# Defaults for the "campPlacement" block of a bake config. routeMaxSlopeDeg must equal
+# GAME_CONFIG.movement.maxWalkSlopeDeg in the engine (the contract test checks the value
+# written to manifest.json). maxWalkSlopeDeg is the stricter limit for camp placement and
+# spawn neighbourhoods, so players never spawn near the engine's slide threshold.
+CAMP_PLACEMENT_DEFAULTS = {
+    "maxWalkSlopeDeg": 30.0,
+    "routeMaxSlopeDeg": 33.0,
+    "analysisSpacingM": 8.0,
+    "toleranceM": 100.0,
+    "spawnRadiusM": 6.0,
+}
+
+
+def print_route_slopes(routes: list[dict], cell_slope: np.ndarray, spec: GridSpec, limit: float) -> None:
+    for route in routes:
+        worst, x, z = route_max_slope(route["points"], cell_slope, spec.spacing_m, spec.origin)
+        print(f"  route {route['from']} -> {route['to']}: max slope {worst:.2f} deg (limit {limit:g}) "
+              f"at x={x:.0f}, z={z:.0f}", flush=True)
 
 
 def synthetic_terrain(spec: GridSpec) -> tuple[np.ndarray, list[tuple[str, str, tuple[int, int]]]]:
@@ -55,13 +73,19 @@ def bake_synthetic(out: str, spec: GridSpec = TEST_PEAK_SPEC, backdrop_spacing_m
     walk_cells = [(camp_id, rc) for camp_id, _, rc in camp_cells]
     if validate:
         validate_camps(h, spec.spacing_m, walk_cells, walk_map=wm)
-    routes = build_routes(h, spec.spacing_m, spec.origin, wm, walk_cells, max_slope_deg=slope_limit)
+    route_limit = CAMP_PLACEMENT_DEFAULTS["routeMaxSlopeDeg"]
+    he = engine_heights(h)  # judge routes on the heights the engine will decode
+    cell_slope = cell_slope_deg(he, spec.spacing_m)
+    routes = build_routes(he, spec.spacing_m, spec.origin, wm, walk_cells, max_slope_deg=route_limit,
+                          cell_slope=cell_slope)
+    print_route_slopes(routes, cell_slope, spec, route_limit)
     camps = [
         {"id": camp_id, "name": name, "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
         for camp_id, name, rc in camp_cells
     ]
     return write_terrain(out, "test-peak", h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
-                         "Synthetic test terrain", backdrop_spacing_m=backdrop_spacing_m, routes=routes)
+                         "Synthetic test terrain", backdrop_spacing_m=backdrop_spacing_m, routes=routes,
+                         route_max_slope_deg=route_limit)
 
 
 def load_dem(url: str, spec: GridSpec):
@@ -105,15 +129,22 @@ def bake_dem(config_path: str, out: str) -> dict:
     # The summit camp is reached by climbing (M2), so it is not part of the walkable check.
     walk_cells = [(c["id"], rc) for c, rc in zip(cfg["camps"], cells)]
     validate_camps(h, spec.spacing_m, walk_cells, walk_map=wm, **walk)
-    print("Finding walkable routes between camps ...", flush=True)
-    routes = build_routes(h, spec.spacing_m, spec.origin, wm, walk_cells, max_slope_deg=walk["max_slope_deg"])
+    route_limit = float(opts["routeMaxSlopeDeg"])
+    print(f"Finding walkable routes between camps (full-res slope < {route_limit:g} deg) ...", flush=True)
+    he = engine_heights(h)  # judge routes on the heights the engine will decode
+    cell_slope = cell_slope_deg(he, spec.spacing_m)
+    routes = build_routes(he, spec.spacing_m, spec.origin, wm, walk_cells, max_slope_deg=route_limit,
+                          cell_slope=cell_slope)
+    del he
+    print_route_slopes(routes, cell_slope, spec, route_limit)
     camps = [
         {"id": c["id"], "name": c["name"], "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
         for c, rc in zip(cfg["camps"], cells)
     ]
     camps.append({"id": "summit", "name": "Summit", "position": cell_to_world(summit, spec.origin, spec.spacing_m, h)})
     return write_terrain(out, cfg["id"], h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
-                         cfg["attribution"], cfg["backdropSpacingM"], routes=routes)
+                         cfg["attribution"], cfg["backdropSpacingM"], routes=routes,
+                         route_max_slope_deg=route_limit)
 
 
 def main(argv: list[str]) -> int:

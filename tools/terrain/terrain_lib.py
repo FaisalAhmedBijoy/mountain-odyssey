@@ -127,6 +127,18 @@ def quantize(h: np.ndarray, min_h: float, max_h: float) -> np.ndarray:
     return np.clip(q, 0, 65535).astype("<u2")
 
 
+def height_range(h: np.ndarray) -> tuple[float, float]:
+    """(min, max) quantisation range written to the manifest: whole metres plus 1 m margin."""
+    return float(math.floor(float(h.min()))) - 1.0, float(math.ceil(float(h.max()))) + 1.0
+
+
+def engine_heights(h: np.ndarray) -> np.ndarray:
+    """The heights the engine decodes from the uint16 tiles that write_terrain writes."""
+    min_h, max_h = height_range(h)
+    q = quantize(h, min_h, max_h).astype(np.float64)
+    return (min_h + q / 65535.0 * (max_h - min_h)).astype(np.float32)
+
+
 def downsample(h: np.ndarray, step: int) -> np.ndarray:
     return np.ascontiguousarray(h[::step, ::step])
 
@@ -134,6 +146,81 @@ def downsample(h: np.ndarray, step: int) -> np.ndarray:
 def slope_deg(h: np.ndarray, spacing_m: float) -> np.ndarray:
     gz, gx = np.gradient(np.asarray(h, dtype=np.float64), spacing_m)
     return np.degrees(np.arctan(np.hypot(gx, gz)))
+
+
+def cell_slope_deg(h: np.ndarray, spacing_m: float, band_rows: int = 1024) -> np.ndarray:
+    """Steepest slope (degrees) anywhere in each full-resolution cell, shape (rows-1, cols-1).
+
+    This is the steepest gradient of the bilinear surface over the cell, which is reached
+    at a corner (steepest x edge combined with steepest z edge). It bounds both physics
+    triangles of the cell and the engine's sampled slope, so ground below the limit here is
+    walkable in the engine. Computed in row bands to keep memory low on large grids.
+    """
+    h = np.asarray(h, dtype=np.float32)
+    out = np.empty((h.shape[0] - 1, h.shape[1] - 1), np.float32)
+    for r0 in range(0, h.shape[0] - 1, band_rows):
+        q = h[r0 : r0 + band_rows + 1]
+        ex = np.maximum(np.abs(q[:-1, 1:] - q[:-1, :-1]), np.abs(q[1:, 1:] - q[1:, :-1]))
+        ez = np.maximum(np.abs(q[1:, :-1] - q[:-1, :-1]), np.abs(q[1:, 1:] - q[:-1, 1:]))
+        out[r0 : r0 + q.shape[0] - 1] = np.degrees(np.arctan(np.hypot(ex, ez) / spacing_m))
+    return out
+
+
+def block_max_slope(cell_slope: np.ndarray, step: int, shape: tuple[int, int]) -> np.ndarray:
+    """Max cell slope over the step x step cells centred on each coarse sample (every
+    step-th full-resolution sample), so the blocks tile the grid. Shape = coarse shape."""
+    lo = step // 2
+    hi = step - lo
+    pad = np.pad(cell_slope, ((lo, hi + 1), (lo, hi + 1)), mode="edge")
+    out = np.zeros(shape, np.float32)
+    for dr in range(step):
+        for dc in range(step):
+            out = np.maximum(out, pad[dr::step, dc::step][: shape[0], : shape[1]])
+    return out
+
+
+def segment_cells(
+    a: tuple[float, float], b: tuple[float, float], origin_m: float, spacing_m: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Every full-resolution cell a straight x/z segment passes through, in order.
+
+    Splits the segment at each grid line it crosses; the midpoint of each piece lies in
+    exactly one cell. Returns (rows, cols, x, z) with x/z the midpoints (unclipped).
+    """
+    ax, az = (a[0] - origin_m) / spacing_m, (a[1] - origin_m) / spacing_m
+    bx, bz = (b[0] - origin_m) / spacing_m, (b[1] - origin_m) / spacing_m
+    ts = [np.array([0.0, 1.0])]
+    for p0, p1 in ((ax, bx), (az, bz)):
+        if p1 != p0:
+            lines = np.arange(math.floor(min(p0, p1)) + 1, math.ceil(max(p0, p1)))
+            ts.append((lines - p0) / (p1 - p0))
+    t = np.unique(np.concatenate(ts))
+    mid = (t[:-1] + t[1:]) / 2 if len(t) > 1 else t
+    fx = ax + (bx - ax) * mid
+    fz = az + (bz - az) * mid
+    return (
+        np.floor(fz).astype(np.int64),
+        np.floor(fx).astype(np.int64),
+        origin_m + fx * spacing_m,
+        origin_m + fz * spacing_m,
+    )
+
+
+def route_max_slope(
+    points: list[list[float]], cell_slope: np.ndarray, spacing_m: float, origin_m: float
+) -> tuple[float, float, float]:
+    """Steepest cell slope under a route polyline, over every full-resolution cell it
+    passes through (finer than any fixed sampling step). Returns (slope_deg, x, z)."""
+    worst = (-1.0, 0.0, 0.0)
+    for p, q in zip(points, points[1:]):
+        r, c, x, z = segment_cells((p[0], p[2]), (q[0], q[2]), origin_m, spacing_m)
+        r = np.clip(r, 0, cell_slope.shape[0] - 1)
+        c = np.clip(c, 0, cell_slope.shape[1] - 1)
+        s = cell_slope[r, c]
+        i = int(np.argmax(s))
+        if s[i] > worst[0]:
+            worst = (float(s[i]), float(x[i]), float(z[i]))
+    return worst
 
 
 def find_summit(h: np.ndarray, *, spacing_m: float = 1.0, radius_m: float | None = None) -> tuple[int, int]:
@@ -366,23 +453,29 @@ def find_route(
     start_rc: tuple[int, int],
     goal_rc: tuple[int, int],
     *,
-    max_slope_deg: float = 30.0,
+    max_slope_deg: float = 33.0,
     point_spacing_m: float = 20.0,
-    check_step_m: float = 4.0,
+    cell_slope: np.ndarray | None = None,
 ) -> list[list[float]]:
     """Walkable route between two full-resolution cells as [x, y, z] world points.
 
-    A* runs on the walkable map's coarse grid (8-connected; step cost = step length x
-    (1 + (slope / max_slope_deg)^2); cells at or above max_slope_deg are impassable).
-    The cell path is string-pulled (a shortcut is kept only when the straight segment
-    stays on walkable cells, sampled every check_step_m) and resampled so consecutive
-    points are at most point_spacing_m apart. Heights come from the full-resolution
-    heightmap. Raises RouteError when the cells are not connected.
+    Slope is judged at full resolution (cell_slope_deg, the steepest ground the engine
+    can measure in each 2 m cell), not on the coarse grid, so 2 m features the coarse
+    grid skips are seen. A* runs on the walkable map's coarse grid (8-connected); each
+    coarse sample stands for the block of full-resolution cells around it, with the
+    block's max slope: blocks at or above max_slope_deg are impassable and the step cost
+    is step length x (1 + (block slope / max_slope_deg)^2). The cell path is
+    string-pulled (a shortcut is kept only when every full-resolution cell the straight
+    segment passes through is below max_slope_deg) and resampled
+    so consecutive points are at most point_spacing_m apart. Heights come from the
+    full-resolution heightmap. Raises RouteError when the cells are not connected.
     """
+    if cell_slope is None:
+        cell_slope = cell_slope_deg(h, spacing_m)
     rows, cols = wm.slope.shape
-    walk_grid = wm.slope < max_slope_deg
-    walk = walk_grid.ravel().tolist()
-    cost = (1.0 + (wm.slope / max_slope_deg) ** 2).ravel().tolist()
+    block = block_max_slope(cell_slope, wm.step, (rows, cols))
+    walk = (block < max_slope_deg).ravel().tolist()
+    cost = (1.0 + (block / max_slope_deg) ** 2).ravel().tolist()
     cs = spacing_m * wm.step
     s = wm.coarse(start_rc)
     g = wm.coarse(goal_rc)
@@ -428,17 +521,14 @@ def find_route(
     inner = [to_xz((ci // cols * wm.step, ci % cols * wm.step)) for ci in cells[1:-1]]
     pts = [to_xz(start_rc), *inner, to_xz(goal_rc)]
 
+    crows, ccols = cell_slope.shape
+    steep = cell_slope >= max_slope_deg
+
     def clear(a: tuple[float, float], b: tuple[float, float]) -> bool:
-        n = max(1, int(math.ceil(math.hypot(b[0] - a[0], b[1] - a[1]) / check_step_m)))
-        for k in range(n + 1):
-            t = k / n
-            x = a[0] + (b[0] - a[0]) * t
-            z = a[1] + (b[1] - a[1]) * t
-            r = int(round((z - origin_m) / cs))
-            c = int(round((x - origin_m) / cs))
-            if r < 0 or r >= rows or c < 0 or c >= cols or not walk_grid[r, c]:
-                return False
-        return True
+        r, c, _, _ = segment_cells(a, b, origin_m, spacing_m)
+        if r.min() < 0 or c.min() < 0 or r.max() >= crows or c.max() >= ccols:
+            return False
+        return not steep[r, c].any()
 
     kept = [pts[0]]
     i = 0
@@ -510,15 +600,31 @@ def build_routes(
     wm: WalkableMap,
     camps: list[tuple[str, tuple[int, int]]],
     *,
-    max_slope_deg: float = 30.0,
+    max_slope_deg: float = 33.0,
+    cell_slope: np.ndarray | None = None,
 ) -> list[dict]:
-    """One manifest route per pair of consecutive walk-connected camps."""
+    """One manifest route per pair of consecutive walk-connected camps.
+
+    Every route is validated at full resolution: no cell it passes through (an exact
+    traversal, finer than sampling every 1 m) may be at or above max_slope_deg; raises
+    RouteError naming the camps and the location.
+    """
+    if cell_slope is None:
+        cell_slope = cell_slope_deg(h, spacing_m)
     routes = []
     for (a_id, a_rc), (b_id, b_rc) in zip(camps, camps[1:]):
         try:
-            points = find_route(h, spacing_m, origin_m, wm, a_rc, b_rc, max_slope_deg=max_slope_deg)
+            points = find_route(
+                h, spacing_m, origin_m, wm, a_rc, b_rc, max_slope_deg=max_slope_deg, cell_slope=cell_slope
+            )
         except RouteError as err:
             raise RouteError(f"no walkable route from {a_id} to {b_id}: {err}") from err
+        worst, x, z = route_max_slope(points, cell_slope, spacing_m, origin_m)
+        if worst >= max_slope_deg:
+            raise RouteError(
+                f"route {a_id} to {b_id} is steeper than {max_slope_deg:g} deg at x={x:.0f}, z={z:.0f} "
+                f"({worst:.1f} deg)"
+            )
         routes.append(
             {
                 "from": a_id,
@@ -569,12 +675,12 @@ def write_terrain(
     attribution: str,
     backdrop_spacing_m: float,
     routes: list[dict] | None = None,
+    route_max_slope_deg: float | None = None,
 ) -> dict:
     out = Path(out_dir)
     tiles_dir = out / "tiles"
     tiles_dir.mkdir(parents=True, exist_ok=True)
-    min_h = float(math.floor(float(h.min()))) - 1.0
-    max_h = float(math.ceil(float(h.max()))) + 1.0
+    min_h, max_h = height_range(h)
     for (tx, tz), tile in split_tiles(h, tile_cells).items():
         (tiles_dir / f"{tx}_{tz}.u16").write_bytes(quantize(tile, min_h, max_h).tobytes())
     step = int(round(backdrop_spacing_m / spacing_m))
@@ -599,5 +705,7 @@ def write_terrain(
     }
     if routes is not None:
         manifest["routes"] = routes
+    if route_max_slope_deg is not None:
+        manifest["routeMaxSlopeDeg"] = route_max_slope_deg
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
