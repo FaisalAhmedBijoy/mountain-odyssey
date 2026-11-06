@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ThirdPersonCamera } from '../camera/ThirdPersonCamera';
-import { GAME_CONFIG as cfg } from '../config/game.config';
+import { GAME_CONFIG as cfg, type BiomeId } from '../config/game.config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { MoveInput } from '../player/movementState';
 import { Player } from '../player/Player';
@@ -36,6 +36,7 @@ export interface GameOptions {
   terrainBaseUrl: string;
   characterUrl: string;
   publish: (patch: Partial<HudState>) => void;
+  biome: BiomeId;
   useWorker?: boolean;
 }
 
@@ -101,7 +102,7 @@ export class Game {
       cfg.camera.near,
       cfg.camera.far,
     );
-    this.environment = new Environment(this.scene, true);
+    this.environment = new Environment(this.scene, true, cfg.biomes[o.biome].sky);
     this.loop = new GameLoop(
       {
         step: (dt) => this.guard(() => this.step(dt)),
@@ -156,6 +157,7 @@ export class Game {
       rings: cfg.terrain.lodRings,
       skirtDepthM: cfg.terrain.skirtDepthM,
       surface: cfg.surface,
+      palette: cfg.biomes[this.o.biome].palette,
     });
     this.cleanup.push(() => {
       chunks.dispose();

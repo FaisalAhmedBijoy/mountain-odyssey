@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import type { MountainDef } from '../data/mountains';
+import { isBiomeId } from '../engine/config/game.config';
 import { Game } from '../engine/core/Game';
 import { initialHudState } from '../engine/core/hud';
 import { gameStore } from '../state/gameStore';
@@ -25,8 +26,11 @@ export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: 
 
     let game: Game | null = null;
     let cancelled = false;
+    const override = new URLSearchParams(window.location.search).get('biome');
+    const biome = override && isBiomeId(override) ? override : mountain.biome;
     Game.create({
       canvas,
+      biome,
       terrainBaseUrl: assetUrl(mountain.terrainBaseUrl),
       characterUrl: CHARACTER_URL,
       publish: (patch) => {

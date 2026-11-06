@@ -1,4 +1,5 @@
-import { SURFACE_COLORS, surfaceAt, type Surface, type SurfaceRules } from './surface';
+import { linearPalette, terrainColor, type TerrainPalette } from './palette';
+import type { SurfaceRules } from './surface';
 
 export interface GridGeometryArgs {
   heights: Float32Array;
@@ -10,6 +11,8 @@ export interface GridGeometryArgs {
   originZ: number;
   skirtDepthM: number;
   surface: SurfaceRules;
+  /** Plain data: this object is structured-cloned into the mesh worker. */
+  palette: TerrainPalette;
   hole?: { minX: number; minZ: number; maxX: number; maxZ: number };
 }
 
@@ -19,21 +22,6 @@ export interface GridGeometryData {
   colors: Float32Array;
   indices: Uint32Array;
 }
-
-const srgbToLinear = (c: number): number =>
-  c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-
-const toLinear = (rgb: readonly [number, number, number]): [number, number, number] => [
-  srgbToLinear(rgb[0]),
-  srgbToLinear(rgb[1]),
-  srgbToLinear(rgb[2]),
-];
-
-const LINEAR_COLORS: Record<Surface, [number, number, number]> = {
-  rock: toLinear(SURFACE_COLORS.rock),
-  snow: toLinear(SURFACE_COLORS.snow),
-  ice: toLinear(SURFACE_COLORS.ice),
-};
 
 /** Deterministic 0–1 hash for subtle per-vertex colour variation. */
 function hash2(x: number, z: number): number {
@@ -47,6 +35,7 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
   if (step < 1 || (samplesX - 1) % step !== 0 || (samplesZ - 1) % step !== 0) {
     throw new Error(`LOD step ${step} must divide ${samplesX - 1} x ${samplesZ - 1} cells`);
   }
+  const palette = linearPalette(a.palette);
   const nx = (samplesX - 1) / step + 1;
   const nz = (samplesZ - 1) / step + 1;
   const hasSkirt = skirtDepthM > 0;
@@ -81,7 +70,7 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
     normals[o + 1] = 1 / len;
     normals[o + 2] = gz / len;
     const slopeDeg = (Math.acos(1 / len) * 180) / Math.PI;
-    const c = LINEAR_COLORS[surfaceAt(slopeDeg, y, a.surface)];
+    const c = terrainColor(slopeDeg, y, a.surface, palette);
     const shade = 0.9 + 0.1 * hash2(x, z);
     colors[o] = c[0] * shade;
     colors[o + 1] = c[1] * shade;

@@ -1,5 +1,6 @@
 {
   "id": "test-peak",
+  "biome": "himalaya",
   "facts": {
     "name": "Test Peak",
     "country": "XX",

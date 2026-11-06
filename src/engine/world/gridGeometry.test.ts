@@ -13,6 +13,7 @@ function args(overrides: Partial<GridGeometryArgs> = {}): GridGeometryArgs {
     originZ: 200,
     skirtDepthM: 10,
     surface: GAME_CONFIG.surface,
+    palette: GAME_CONFIG.biomes.himalaya.palette,
     ...overrides,
   };
 }

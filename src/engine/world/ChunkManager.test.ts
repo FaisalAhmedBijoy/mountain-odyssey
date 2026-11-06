@@ -83,6 +83,7 @@ async function setup() {
     ],
     skirtDepthM: 20,
     surface: GAME_CONFIG.surface,
+    palette: GAME_CONFIG.biomes.himalaya.palette,
     fetchFn: fakeFetch,
   });
   await manager.loadBackdrop();

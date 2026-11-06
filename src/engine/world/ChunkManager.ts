@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { GridGeometryData } from './gridGeometry';
 import type { MeshBuilder } from './meshBuilder';
+import type { TerrainPalette } from './palette';
 import type { SurfaceRules } from './surface';
 import {
   loadBackdrop,
@@ -89,6 +90,7 @@ export interface ChunkManagerDeps {
   rings: readonly LodRing[];
   skirtDepthM: number;
   surface: SurfaceRules;
+  palette: TerrainPalette;
   fetchFn?: typeof fetch;
 }
 
@@ -191,6 +193,7 @@ export class ChunkManager {
           originZ: m.originZ + k.tz * size,
           skirtDepthM: this.d.skirtDepthM,
           surface: this.d.surface,
+          palette: this.d.palette,
         });
         if (this.disposed) return;
         this.removeMesh(key);
@@ -223,6 +226,7 @@ export class ChunkManager {
       originZ: m.originZ,
       skirtDepthM: 0,
       surface: this.d.surface,
+      palette: this.d.palette,
       hole,
     });
     if (this.disposed) return;

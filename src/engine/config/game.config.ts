@@ -118,7 +118,39 @@ export const GAME_CONFIG = {
     /** Respawn when the feet drop this far below the lowest baked height. */
     outOfWorldDropM: 50,
   },
-  world: { skyColor: 0xa9c4dd, fogNear: 800, fogFar: 7000, sunDirection: [0.4, 0.8, 0.3] },
+  world: { sunDirection: [0.4, 0.8, 0.3] },
+  /** Per-mountain looks (Keokradong spec §3). Gameplay rules stay global. */
+  biomes: {
+    himalaya: {
+      palette: { kind: 'surface' },
+      sky: { color: 0xa9c4dd, fogNear: 800, fogFar: 7000 },
+      trees: null,
+    },
+    'tropical-hills': {
+      palette: {
+        kind: 'slope',
+        /** sRGB; the first band whose maxSlopeDeg exceeds the slope wins. */
+        bands: [
+          { maxSlopeDeg: 15, color: [0.36, 0.55, 0.24] },
+          { maxSlopeDeg: 35, color: [0.17, 0.36, 0.16] },
+          { maxSlopeDeg: 90, color: [0.55, 0.33, 0.2] },
+        ],
+      },
+      sky: { color: 0xc4d6cf, fogNear: 300, fogFar: 3500 },
+      trees: {
+        seed: 986,
+        spacingM: 7,
+        density: 0.35,
+        maxSlopeDeg: 40,
+        routeClearanceM: 4,
+        campClearanceM: 20,
+        ringRadius: 1,
+        minScale: 0.8,
+        maxScale: 1.4,
+        castShadow: false,
+      },
+    },
+  },
   hud: { publishIntervalMs: 100, toastMs: 3000 },
   guide: {
     ribbonWidthM: 1.2,
@@ -136,3 +168,7 @@ export const GAME_CONFIG = {
     markerFlagColor: 0xd7263d,
   },
 } as const;
+
+export type BiomeId = keyof typeof GAME_CONFIG.biomes;
+
+export const isBiomeId = (v: string): v is BiomeId => Object.hasOwn(GAME_CONFIG.biomes, v);

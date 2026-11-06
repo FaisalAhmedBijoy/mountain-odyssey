@@ -9,10 +9,14 @@ export class Environment {
   private readonly sun = new THREE.DirectionalLight(0xfff1e0, 2.4);
   private readonly sunDir = new THREE.Vector3(...w.sunDirection).normalize();
 
-  constructor(scene: THREE.Scene, shadows: boolean) {
-    const sky = new THREE.Color(w.skyColor);
-    scene.background = sky;
-    scene.fog = new THREE.Fog(sky, w.fogNear, w.fogFar);
+  constructor(
+    scene: THREE.Scene,
+    shadows: boolean,
+    sky: { color: number; fogNear: number; fogFar: number },
+  ) {
+    const skyColor = new THREE.Color(sky.color);
+    scene.background = skyColor;
+    scene.fog = new THREE.Fog(skyColor, sky.fogNear, sky.fogFar);
     scene.add(new THREE.HemisphereLight(0xdfeeff, 0x4a4038, 0.9));
     if (shadows) {
       this.sun.castShadow = true;
