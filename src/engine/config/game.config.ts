@@ -13,8 +13,8 @@ export const GAME_CONFIG = {
     feetNearGroundM: 0.15,
   },
   movement: {
-    walkSpeed: 1.4,
-    runSpeed: 3.5,
+    walkSpeed: 2,
+    runSpeed: 5,
     climbSpeed: 0.5,
     jumpVelocity: 4.5,
     airControl: 0.3,

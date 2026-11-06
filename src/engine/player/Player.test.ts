@@ -72,8 +72,8 @@ describe('Player', () => {
     const s = player.snapshot;
     expect(s.state).toBe('walk');
     expect(s.grounded).toBe(true);
-    expect(s.feet.z).toBeLessThan(-1.1);
-    expect(s.feet.z).toBeGreaterThan(-1.6);
+    expect(s.feet.z).toBeLessThan(-1.7);
+    expect(s.feet.z).toBeGreaterThan(-2.2);
     expect(s.feet.y).toBeCloseTo(100, 1);
   });
 
