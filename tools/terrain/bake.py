@@ -106,6 +106,20 @@ def load_dem(url: str, spec: GridSpec):
     return dem, (west_c, south_c, east_c, north_c)
 
 
+def walk_targets(camp_cfgs: list[dict], cells: list[tuple[int, int]], summit: tuple[int, int],
+                 summit_walkable: bool) -> list[tuple[str, tuple[int, int]]]:
+    """Camps that must be reached on foot, in route order.
+
+    On mountains climbed to the top (Mera), the summit is reached by climbing (M2) and
+    is exempt. With `summitWalkable` (e.g. Keokradong) it must be walk-connected too,
+    and gets a route from the last camp.
+    """
+    targets = [(c["id"], rc) for c, rc in zip(camp_cfgs, cells)]
+    if summit_walkable:
+        targets.append(("summit", summit))
+    return targets
+
+
 def bake_dem(config_path: str, out: str) -> dict:
     with open(config_path) as f:
         cfg = json.load(f)
@@ -126,8 +140,7 @@ def bake_dem(config_path: str, out: str) -> dict:
     print("Placing camps on connected walkable ground ...", flush=True)
     wm = walkable_map(h, spec.spacing_m, walk["max_slope_deg"], walk["analysis_spacing_m"])
     cells = place_camps(h, spec.spacing_m, summit, cfg["camps"], tolerance_m=opts["toleranceM"], walk_map=wm, **walk)
-    # The summit camp is reached by climbing (M2), so it is not part of the walkable check.
-    walk_cells = [(c["id"], rc) for c, rc in zip(cfg["camps"], cells)]
+    walk_cells = walk_targets(cfg["camps"], cells, summit, bool(cfg.get("summitWalkable", False)))
     validate_camps(h, spec.spacing_m, walk_cells, walk_map=wm, **walk)
     route_limit = float(opts["routeMaxSlopeDeg"])
     print(f"Finding walkable routes between camps (full-res slope < {route_limit:g} deg) ...", flush=True)

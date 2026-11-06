@@ -609,3 +609,17 @@ def test_string_pull_keeps_the_farthest_visible_point_not_the_first_blocked_one(
     assert not clear(a, c) and clear(a, d)
     assert string_pull([a, b, c, d], clear) == [a, d]
     assert string_pull([a, b, c, d], clear, max_lookahead=2) == [a, b, d]
+
+
+from bake import walk_targets  # noqa: E402
+
+
+def test_walk_targets_excludes_summit_by_default():
+    camps = [{"id": "a"}, {"id": "b"}]
+    cells = [(1, 1), (2, 2)]
+    assert walk_targets(camps, cells, (9, 9), False) == [("a", (1, 1)), ("b", (2, 2))]
+
+
+def test_walk_targets_appends_summit_when_walkable():
+    camps = [{"id": "a"}]
+    assert walk_targets(camps, [(1, 1)], (9, 9), True) == [("a", (1, 1)), ("summit", (9, 9))]

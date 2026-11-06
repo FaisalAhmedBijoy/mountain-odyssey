@@ -35,10 +35,11 @@ jobs:
           python-version: '3.12'
       - run: pip install numpy pillow rasterio
       - run: npm ci
-      - name: Bake terrain (synthetic test-peak + Mera Peak from Copernicus DEM)
+      - name: Bake terrain (synthetic test-peak, Mera Peak and Keokradong from Copernicus DEM)
         run: |
           npm run terrain:test
           npm run terrain:mera
+          npm run terrain:keokradong
       - name: Build for the /mountain-odyssey/ project path
         run: npm run build
         env:
@@ -48,6 +49,7 @@ jobs:
           test -f dist/index.html
           test -f dist/models/RobotExpressive.glb
           test -f dist/terrain/mera-peak/manifest.json
+          test -f dist/terrain/keokradong/manifest.json
           test -f dist/terrain/test-peak/manifest.json
           grep -q '/mountain-odyssey/assets/' dist/index.html
           du -sh dist
