@@ -52,6 +52,6 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 ## Keokradong
 
 - [ ] Bangladesh → Keokradong → Climb loads a green hill with trees.
-- [ ] The orange route runs Boga Lake → Ridge Camp → Summit with no trees on it.
+- [ ] The orange route runs Boga Lake → Camp 1 → Camp 2 → Summit with no trees on it.
 - [ ] The Summit checkpoint is reachable on foot.
 - [ ] FPS stays ≥ 30 among the trees.

@@ -21,6 +21,7 @@
   "attribution": "Contains modified Copernicus DEM data",
   "camps": [
     { "id": "boga-lake", "name": "Boga Lake", "targetElevationM": 400 },
-    { "id": "ridge-camp", "name": "Ridge Camp", "targetElevationM": 700 }
+    { "id": "camp-1", "name": "Camp 1", "targetElevationM": 580 },
+    { "id": "camp-2", "name": "Camp 2", "targetElevationM": 800 }
   ]
 }

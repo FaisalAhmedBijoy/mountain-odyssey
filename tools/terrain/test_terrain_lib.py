@@ -690,6 +690,10 @@ def test_keokradong_config_is_walkable_to_the_summit_within_the_route_limit():
     assert cfg["summitWalkable"] is True
     assert cfg["campPlacement"]["routeMaxSlopeDeg"] <= 33
     assert cfg["attribution"] == "Contains modified Copernicus DEM data"
+    assert [c["id"] for c in cfg["camps"]] == ["boga-lake", "camp-1", "camp-2"]
+    assert [c["name"] for c in cfg["camps"]] == ["Boga Lake", "Camp 1", "Camp 2"]
+    targets = [c["targetElevationM"] for c in cfg["camps"]]
+    assert targets == sorted(targets)
 
 
 @pytest.mark.parametrize("cfg, expected", [({}, False), ({"summitWalkable": True}, True),

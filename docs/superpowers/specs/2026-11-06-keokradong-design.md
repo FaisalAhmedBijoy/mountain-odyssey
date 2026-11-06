@@ -40,13 +40,14 @@ Only supplies and stamina matter, and that is accepted for this version.
 
 **Camps:**
 - `boga-lake`, "Boga Lake", target ≈ 400 m (start).
-- `ridge-camp`, "Ridge Camp", target ≈ 700 m.
+- `camp-1`, "Camp 1", target ≈ 580 m.
+- `camp-2`, "Camp 2", target ≈ 800 m.
 - Then the automatic `summit` checkpoint.
 - Camp positions come from the bake's placement on walkable ground near the target elevation. They are inspired by the real trek, not surveyed locations, as with Khare on Mera.
 
 **New option `"summitWalkable": true`:**
 - On Mera the summit camp is reached by climbing (M2), so it is exempt from the walk-connection check and has no route.
-- With `summitWalkable`, the bake also includes the summit in `validate_camps` and in `build_routes`. That makes routes Boga Lake → Ridge Camp → Summit. The bake fails if the summit is not walk-connected below `routeMaxSlopeDeg` (33°).
+- With `summitWalkable`, the bake also includes the summit in `validate_camps` and in `build_routes`. That makes routes Boga Lake → Camp 1 → Camp 2 → Summit. The bake fails if the summit is not walk-connected below `routeMaxSlopeDeg` (33°).
 - The default is `false`, so the Mera bake is unchanged.
 
 **If the bake fails:**
@@ -157,9 +158,13 @@ A biome sets how a mountain looks. It does not change gameplay rules; `SurfaceRu
 `npm run terrain:keokradong` (Copernicus GLO-30, centre 21.94° N, 92.52° E, height range 44–981 m):
 
 - Camp Boga Lake: 402.2 m at x=-3344, z=-2032 (2,800 m from the nearest grid edge).
-- Camp Ridge Camp: 697.2 m at x=472, z=152.
+- Camp Camp 1: 576.4 m at x=3144, z=-1424 (3,000 m from the nearest grid edge).
+- Camp Camp 2: 801.7 m at x=-1568, z=-1344 (4,576 m from the nearest grid edge).
 - Camp Summit: 979.6 m at x=-576, z=-1110.
-- Route boga-lake → ridge-camp: 6320 m, max slope 32.99°.
-- Route ridge-camp → summit: 4001 m, max slope 32.99°.
+- Route boga-lake → camp-1: 7494 m, max slope 32.96°.
+- Route camp-1 → camp-2: 5724 m, max slope 32.73°.
+- Route camp-2 → summit: 1045 m, max slope 32.61°.
+
+Camps changed to Boga Lake → Camp 1 → Camp 2 → Summit on 2026-11-07 (map feature); a 600 m Camp 1 target failed at 33.4°.
 
 The first bake (centre 21.95° N) was mis-registered: its window crossed the north edge of DEM tile `N21_00_E092_00`, the read was silently cropped, and the terrain was shifted about 820 m and edge-replicated in the south, where Boga Lake had been placed. The bake now refuses any window that is not fully covered by the DEM (`check_dem_coverage` in `tools/terrain/bake.py`).

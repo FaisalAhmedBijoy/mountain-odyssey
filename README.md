@@ -49,11 +49,11 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 
 The game opens on a country menu: pick Nepal, then Mera Peak, or Bangladesh, then Keokradong (other peaks show "Coming soon"). Press `Esc`, then "Choose another mountain", to go back to the menu.
 
-| Mountain               | URL                                                                                                 | Notes                                                                                    |
-| ---------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Mera Peak, Nepal       | [`/?mountain=mera-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=mera-peak)   | Real DEM terrain. The route from Khare to High Camp is about 4.1 km.                     |
-| Keokradong, Bangladesh | [`/?mountain=keokradong`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=keokradong) | Green forested hills, about 986 m. The route runs Boga Lake, Ridge Camp, Summit on foot. |
-| Test Peak              | [`/?mountain=test-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=test-peak)   | A small synthetic mountain with an 8 m cliff ring, for practice and tests                |
+| Mountain               | URL                                                                                                 | Notes                                                                                        |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Mera Peak, Nepal       | [`/?mountain=mera-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=mera-peak)   | Real DEM terrain. The route from Khare to High Camp is about 4.1 km.                         |
+| Keokradong, Bangladesh | [`/?mountain=keokradong`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=keokradong) | Green forested hills, about 986 m. The route runs Boga Lake, Camp 1, Camp 2, Summit on foot. |
+| Test Peak              | [`/?mountain=test-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=test-peak)   | A small synthetic mountain with an 8 m cliff ring, for practice and tests                    |
 
 The menu also lists Island Peak, Everest, Kangchenjunga, Nanda Devi, Stok Kangri, and Saka Haphong as coming soon.
 
