@@ -157,10 +157,10 @@ A biome sets how a mountain looks. It does not change gameplay rules; `SurfaceRu
 
 `npm run terrain:keokradong` (Copernicus GLO-30, centre 21.94° N, 92.52° E, height range 44–981 m):
 
-- Camp Boga Lake: 402.2 m at x=-3344, z=-2032 (2,800 m from the nearest grid edge).
-- Camp Camp 1: 576.4 m at x=3144, z=-1424 (3,000 m from the nearest grid edge).
-- Camp Camp 2: 801.7 m at x=-1568, z=-1344 (4,576 m from the nearest grid edge).
-- Camp Summit: 979.6 m at x=-576, z=-1110.
+- Boga Lake: 402.2 m at x=-3344, z=-2032 (2,800 m from the nearest grid edge).
+- Camp 1: 576.4 m at x=3144, z=-1424 (3,000 m from the nearest grid edge).
+- Camp 2: 801.7 m at x=-1568, z=-1344 (4,576 m from the nearest grid edge).
+- Summit: 979.6 m at x=-576, z=-1110.
 - Route boga-lake → camp-1: 7494 m, max slope 32.96°.
 - Route camp-1 → camp-2: 5724 m, max slope 32.73°.
 - Route camp-2 → summit: 1045 m, max slope 32.61°.

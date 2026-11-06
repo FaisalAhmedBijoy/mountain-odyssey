@@ -38,7 +38,10 @@ export function drawMap(
   ctx.fillStyle = BACKGROUND;
   ctx.fillRect(0, 0, size, size);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(relief, px(0), py(0), kx, ky);
+  // Sample centres sit on the grid lines, so extend the image by half a pixel each side.
+  const hu = 0.5 / (map.image.width - 1);
+  const hv = 0.5 / (map.image.height - 1);
+  ctx.drawImage(relief, px(-hu), py(-hv), kx * (1 + 2 * hu), ky * (1 + 2 * hv));
 
   ctx.strokeStyle = ROUTE;
   ctx.lineWidth = (view.labels ? 3 : 2.5) * dpr;

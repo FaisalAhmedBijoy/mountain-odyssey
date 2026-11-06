@@ -3,6 +3,7 @@ import { useStore } from 'zustand';
 import { gameStore } from '../../state/gameStore';
 import { formatDistance } from '../formatDistance';
 import { drawMap } from './drawMap';
+import { mapFooterText } from './footerText';
 import { useRelief } from './useRelief';
 
 const SIZE_PX = 720;
@@ -33,17 +34,17 @@ export function FullMap({ mountainName }: { mountainName: string }) {
   }, [open, map, relief, player, camps, dpr]);
 
   if (!open || !map) return null;
+  const footer = mapFooterText(guide, map.camps, camps, formatDistance);
   return (
     <div className="fullmap" role="dialog" aria-label={`Map of ${mountainName}`}>
       <div className="fullmap__title">{mountainName}</div>
       <canvas ref={ref} className="fullmap__canvas" width={SIZE_PX * dpr} height={SIZE_PX * dpr} />
-      <div className="fullmap__footer">
-        {guide ? `Next: ${guide.label} · ${formatDistance(guide.distanceM)}` : 'All camps reached'}
-        {' · Tab — close'}
-      </div>
+      <div className="fullmap__footer">{footer ? `${footer} · Tab — close` : 'Tab — close'}</div>
       <ul className="sr-only">
         {map.camps.map((c) => (
-          <li key={c.id}>{`${c.name} · ${c.elevationM} m · ${camps[c.id] ?? 'ahead'}`}</li>
+          <li
+            key={c.id}
+          >{`${c.name} · ${c.elevationM.toLocaleString('en-US')} m · ${camps[c.id] ?? 'ahead'}`}</li>
         ))}
       </ul>
     </div>

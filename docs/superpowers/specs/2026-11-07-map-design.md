@@ -65,7 +65,7 @@ While climbing, the player can see where they are on the mountain: the camps on 
 
 **New `src/engine/world/mapImage.ts`:**
 
-`buildMapImage(backdrop, manifest, palette, surface)` returns `{ width, height, pixels: Uint8ClampedArray }` (RGBA). The image is a shaded relief of the backdrop heights, one pixel per backdrop sample (for example, 193 × 193 at 64 m spacing).
+`buildMapImage(backdrop, palette, surface)` returns `{ width, height, pixels: Uint8ClampedArray }` (RGBA). The image is a shaded relief of the backdrop heights, one pixel per backdrop sample (for example, 193 × 193 at 64 m spacing).
 
 **Colour:**
 - Use `terrainColor(slopeDeg, altitudeM, surface, linearPalette(palette))`, the same colours the 3-D terrain uses.
@@ -87,7 +87,7 @@ While climbing, the player can see where they are on the mountain: the camps on 
 
 **`HudState.map: MapInfo | null`.** It is published once, after the world is ready.
 - `image: { width, height, pixels }`
-- `bounds`
+- `sizeM: { x, z }` (world size in metres, used for the aspect ratio)
 - `camps: { id, name, elevationM, u, v }[]`
 - `routes: { u, v }[][]`, simplified and in map units
 
@@ -96,7 +96,7 @@ While climbing, the player can see where they are on the mountain: the camps on 
 - 0 means north, which is up on the map, and the angle increases clockwise.
 - Check the sign against `PlayerSnapshot.facingYaw = atan2(facing.x, facing.z)`. World +z is south, so north-up heading = π − facingYaw, normalised. Pin this with a unit test.
 
-**`HudState.mapCamps: Record<campId, 'reached' | 'next' | 'ahead'>`.** It is published when it changes.
+**`HudState.mapCamps: Record<campId, 'reached' | 'next' | 'ahead'>`.** It is published every HUD tick (a small object), not only on change.
 
 **`HudState.mapOpen: boolean`.**
 - `Tab` toggles it. It is read in `render()` so it also works while paused, like `H`.
@@ -158,7 +158,7 @@ The engine never touches the DOM for the map. React draws everything from this d
 
 **e2e (test-peak):**
 - `[aria-label="Map"]` is visible.
-- `Tab` opens the dialog "Map of Test Peak", which lists Khare, High Camp and Summit.
+- `Tab` opens the dialog "Map of Test Peak", which lists Khare and High Camp (test-peak has no summit camp).
 - `Tab` closes it.
 - No page errors.
 
