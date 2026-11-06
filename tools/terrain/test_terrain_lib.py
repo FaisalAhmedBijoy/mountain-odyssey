@@ -623,3 +623,103 @@ def test_walk_targets_excludes_summit_by_default():
 def test_walk_targets_appends_summit_when_walkable():
     camps = [{"id": "a"}]
     assert walk_targets(camps, [(1, 1)], (9, 9), True) == [("a", (1, 1)), ("summit", (9, 9))]
+
+
+def _write_test_dem(path, west=92.4, south=21.9, east=92.5, north=22.0, size=50):
+    import rasterio
+    from rasterio.transform import from_bounds as transform_from_bounds
+
+    data = np.arange(size * size, dtype=np.float32).reshape(size, size)
+    with rasterio.open(
+        path, "w", driver="GTiff", width=size, height=size, count=1, dtype="float32",
+        crs="EPSG:4326", transform=transform_from_bounds(west, south, east, north, size, size),
+    ) as dst:
+        dst.write(data, 1)
+    return str(path)
+
+
+def test_load_dem_refuses_a_window_past_the_tile_edge(tmp_path):
+    from bake import load_dem
+
+    url = _write_test_dem(tmp_path / "dem.tif")
+    # 2048 m grid + 200 m margin centred 21.995 N reaches ~22.006 N, past the 22.0 N edge
+    spec = GridSpec(21.995, 92.45, tiles=4, tile_cells=256, spacing_m=2.0)
+    with pytest.raises(ValueError, match="centerLat"):
+        load_dem(url, spec)
+
+
+def test_load_dem_returns_the_window_and_its_bounds_when_inside(tmp_path):
+    from bake import load_dem
+
+    url = _write_test_dem(tmp_path / "dem.tif")
+    spec = GridSpec(21.95, 92.45, tiles=4, tile_cells=256, spacing_m=2.0)
+    dem, (west, south, east, north) = load_dem(url, spec)
+    w, s, e, n = latlon_bounds(spec)
+    px = 0.1 / 50
+    # pixel-centre bounds cover the requested area to within one pixel
+    assert west <= w + px and east >= e - px and south <= s + px and north >= n - px
+    assert (east - west) == pytest.approx((dem.shape[1] - 1) * px)
+    assert (north - south) == pytest.approx((dem.shape[0] - 1) * px)
+    # row 0 is the northern edge: pixel row index = (22.0 - north) / px - 0.5
+    row0 = round((22.0 - north) / px - 0.5)
+    col0 = round((west - 92.4) / px - 0.5)
+    assert dem[0, 0] == pytest.approx(row0 * 50 + col0)
+
+
+def test_dem_window_check_passes_for_mera_peak_bounds():
+    from bake import check_dem_coverage
+
+    with open(Path(__file__).parent / "mera-peak.config.json") as f:
+        cfg = json.load(f)
+    spec = GridSpec(cfg["centerLat"], cfg["centerLon"], cfg["tiles"], cfg["tileCells"], cfg["spacingM"])
+    check_dem_coverage(latlon_bounds(spec), (86.0, 27.0, 87.0, 28.0))  # tile N27 E086
+
+
+def test_dem_window_check_passes_for_keokradong_bounds():
+    from bake import check_dem_coverage
+
+    with open(Path(__file__).parent / "keokradong.config.json") as f:
+        cfg = json.load(f)
+    spec = GridSpec(cfg["centerLat"], cfg["centerLon"], cfg["tiles"], cfg["tileCells"], cfg["spacingM"])
+    check_dem_coverage(latlon_bounds(spec), (92.0, 21.0, 93.0, 22.0))  # tile N21 E092
+
+
+def test_keokradong_config_is_walkable_to_the_summit_within_the_route_limit():
+    with open(Path(__file__).parent / "keokradong.config.json") as f:
+        cfg = json.load(f)
+    assert cfg["summitWalkable"] is True
+    assert cfg["campPlacement"]["routeMaxSlopeDeg"] <= 33
+    assert cfg["attribution"] == "Contains modified Copernicus DEM data"
+
+
+@pytest.mark.parametrize("cfg, expected", [({}, False), ({"summitWalkable": True}, True),
+                                           ({"summitWalkable": False}, False)])
+def test_summit_walkable_reads_a_json_boolean(cfg, expected):
+    from bake import summit_walkable
+
+    assert summit_walkable(cfg) is expected
+
+
+@pytest.mark.parametrize("value", ["true", 1, 0, None, "false"])
+def test_summit_walkable_rejects_non_boolean_values(value):
+    from bake import summit_walkable
+
+    with pytest.raises(ValueError, match="summitWalkable"):
+        summit_walkable({"summitWalkable": value})
+
+
+def test_synthetic_summit_walk_gets_a_route_ending_at_the_summit():
+    from bake import TEST_PEAK_SPEC, synthetic_terrain
+
+    spec = TEST_PEAK_SPEC
+    h, camp_cells = synthetic_terrain(spec)
+    summit = find_summit(h, spacing_m=spec.spacing_m)
+    khare = [(name, rc) for camp_id, name, rc in camp_cells if camp_id == "khare"]
+    targets = walk_targets([{"id": "khare"}], [khare[0][1]], summit, True)
+    wm = walkable_map(h, spec.spacing_m, 30.0, 8.0)
+    validate_camps(h, spec.spacing_m, targets, walk_map=wm)
+    (route,) = build_routes(h, spec.spacing_m, spec.origin, wm, targets, max_slope_deg=33.0)
+    assert (route["from"], route["to"]) == ("khare", "summit")
+    sx, _, sz = cell_to_world(summit, spec.origin, spec.spacing_m, h)
+    assert route["points"][-1][0] == pytest.approx(sx, abs=0.1)
+    assert route["points"][-1][2] == pytest.approx(sz, abs=0.1)

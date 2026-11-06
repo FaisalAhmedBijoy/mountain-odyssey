@@ -88,15 +88,37 @@ def bake_synthetic(out: str, spec: GridSpec = TEST_PEAK_SPEC, backdrop_spacing_m
                          route_max_slope_deg=route_limit)
 
 
+def check_dem_coverage(requested: tuple[float, float, float, float],
+                       available: tuple[float, float, float, float]) -> None:
+    """Raise ValueError unless the requested (west, south, east, north) bounds lie fully
+    inside the dataset's bounds. A partial read would be cropped (or edge-replicated) and
+    mis-registered, so the bake refuses it instead."""
+    w, s, e, n = requested
+    aw, as_, ae, an = available
+    if w >= aw and s >= as_ and e <= ae and n <= an:
+        return
+    raise ValueError(
+        f"DEM window W {w:.4f} S {s:.4f} E {e:.4f} N {n:.4f} (grid plus margin) is not fully inside "
+        f"the DEM, which covers W {aw:.4f} S {as_:.4f} E {ae:.4f} N {an:.4f}. Move centerLat/centerLon "
+        f"so the window fits the tile, or mosaic neighbouring DEM tiles."
+    )
+
+
 def load_dem(url: str, spec: GridSpec):
     import rasterio
-    from rasterio.windows import from_bounds
+    from rasterio.windows import Window, from_bounds
 
     west, south, east, north = latlon_bounds(spec)
     with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR", AWS_NO_SIGN_REQUEST="YES"):
         with rasterio.open(url) as src:
+            b = src.bounds
+            check_dem_coverage((west, south, east, north), (b.left, b.bottom, b.right, b.top))
             window = from_bounds(west, south, east, north, transform=src.transform)
             window = window.round_offsets().round_lengths()
+            if window.intersection(Window(0, 0, src.width, src.height)) != window:
+                # bounds fit but pixel rounding reaches past the edge: still a partial read
+                raise ValueError(f"DEM window {window} rounds past the {src.width}x{src.height} DEM; "
+                                 "move centerLat/centerLon away from the tile edge.")
             dem = src.read(1, window=window).astype(np.float32)
             t = src.window_transform(window)
     west_c = t.c + t.a / 2
@@ -120,6 +142,14 @@ def walk_targets(camp_cfgs: list[dict], cells: list[tuple[int, int]], summit: tu
     return targets
 
 
+def summit_walkable(cfg: dict) -> bool:
+    """`summitWalkable` from a bake config: False when absent, else it must be a JSON boolean."""
+    value = cfg.get("summitWalkable", False)
+    if not isinstance(value, bool):
+        raise ValueError(f"summitWalkable must be true or false, got {value!r}")
+    return value
+
+
 def bake_dem(config_path: str, out: str) -> dict:
     with open(config_path) as f:
         cfg = json.load(f)
@@ -140,7 +170,7 @@ def bake_dem(config_path: str, out: str) -> dict:
     print("Placing camps on connected walkable ground ...", flush=True)
     wm = walkable_map(h, spec.spacing_m, walk["max_slope_deg"], walk["analysis_spacing_m"])
     cells = place_camps(h, spec.spacing_m, summit, cfg["camps"], tolerance_m=opts["toleranceM"], walk_map=wm, **walk)
-    walk_cells = walk_targets(cfg["camps"], cells, summit, bool(cfg.get("summitWalkable", False)))
+    walk_cells = walk_targets(cfg["camps"], cells, summit, summit_walkable(cfg))
     validate_camps(h, spec.spacing_m, walk_cells, walk_map=wm, **walk)
     route_limit = float(opts["routeMaxSlopeDeg"])
     print(f"Finding walkable routes between camps (full-res slope < {route_limit:g} deg) ...", flush=True)
