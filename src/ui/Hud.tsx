@@ -1,13 +1,10 @@
 import { useRef } from 'react';
 import { useStore } from 'zustand';
-import { GAME_CONFIG } from '../engine/config/game.config';
 import { gameStore } from '../state/gameStore';
 import { CONTROL_HINTS } from './controlHints';
 import { formatDistance } from './formatDistance';
 import { formatMinSec } from './formatMinSec';
 import { unwrapAngle } from './unwrapAngle';
-
-const WARN = GAME_CONFIG.survival;
 
 interface StatBarProps {
   label: string;
@@ -52,24 +49,9 @@ export function Hud() {
           {s.altitudeM.toLocaleString('en-US')} m
         </div>
         <StatBar label="Stamina" value={s.stamina} cap={s.staminaCap} tone="stamina" />
-        <StatBar
-          label="Oxygen"
-          value={s.oxygen}
-          tone="oxygen"
-          warn={s.oxygen < WARN.oxygen.warnLow}
-        />
-        <StatBar
-          label="Warmth"
-          value={s.bodyTemp}
-          tone="warmth"
-          warn={s.bodyTemp < WARN.temperature.warnCold}
-        />
-        <StatBar
-          label="Supplies"
-          value={s.supplies}
-          tone="supplies"
-          warn={s.supplies < WARN.supplies.warnLow}
-        />
+        <StatBar label="Oxygen" value={s.oxygen} tone="oxygen" warn={s.lowStats.oxygen} />
+        <StatBar label="Warmth" value={s.bodyTemp} tone="warmth" warn={s.lowStats.bodyTemp} />
+        <StatBar label="Supplies" value={s.supplies} tone="supplies" warn={s.lowStats.supplies} />
         <div className="hud__items" data-testid="items">
           {`Food ${s.items.food} · Water ${s.items.water} · O₂ ${s.items.o2}`}
         </div>

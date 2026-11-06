@@ -93,6 +93,21 @@ export function topWarning(s: SurvivalState, r: SurvivalRules): Warning | null {
   return null;
 }
 
+/** Which stats are below their warning threshold, from the raw (unrounded) values. */
+export interface LowStats {
+  oxygen: boolean;
+  bodyTemp: boolean;
+  supplies: boolean;
+}
+
+export function lowStats(s: SurvivalState, r: SurvivalRules): LowStats {
+  return {
+    oxygen: s.oxygen < r.oxygen.warnLow,
+    bodyTemp: s.bodyTemp < r.temperature.warnCold,
+    supplies: s.supplies < r.supplies.warnLow,
+  };
+}
+
 export function startBottle(
   s: SurvivalState,
   r: SurvivalRules,

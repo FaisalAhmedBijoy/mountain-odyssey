@@ -1,5 +1,6 @@
 import type { GuideHud } from '../systems/RouteGuide';
 import type { Inventory } from '../survival/inventory';
+import type { LowStats } from '../survival/survival';
 import type { MoveState } from '../player/movementState';
 
 export interface HudState {
@@ -12,6 +13,8 @@ export interface HudState {
   oxygen: number;
   bodyTemp: number;
   supplies: number;
+  /** Raw stat below its warning threshold (drives the bar flash). */
+  lowStats: LowStats;
   items: Inventory;
   /** Whole seconds of bottled oxygen left, or null when no bottle is active. */
   o2SecondsLeft: number | null;
@@ -40,6 +43,7 @@ export const initialHudState: HudState = {
   oxygen: 100,
   bodyTemp: 100,
   supplies: 100,
+  lowStats: { oxygen: false, bodyTemp: false, supplies: false },
   items: { food: 0, water: 0, o2: 0 },
   o2SecondsLeft: null,
   warning: null,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from '../config/game.config';
 import {
   initialSurvival,
+  lowStats,
   respawnSurvival,
   restAtCamp,
   startBottle,
@@ -96,6 +97,26 @@ describe('topWarning', () => {
     expect(topWarning(state({ bodyTemp: 39, oxygen: 24 }), r)).toBe('oxygenLow');
     expect(topWarning(state({ oxygen: 24, bodyTemp: 14 }), r)).toBe('hypothermia');
     expect(topWarning(state({ bodyTemp: 14, oxygen: 9 }), r)).toBe('oxygenCritical');
+  });
+});
+
+describe('lowStats', () => {
+  it('flags each raw stat below its warning threshold (oxygen 25, warmth 40, supplies 20)', () => {
+    expect(lowStats(state({ oxygen: 25, bodyTemp: 40, supplies: 20 }), r)).toEqual({
+      oxygen: false,
+      bodyTemp: false,
+      supplies: false,
+    });
+    expect(lowStats(state({ oxygen: 24.9, bodyTemp: 39.9, supplies: 19.9 }), r)).toEqual({
+      oxygen: true,
+      bodyTemp: true,
+      supplies: true,
+    });
+    expect(lowStats(state({ oxygen: 50, bodyTemp: 100, supplies: 0.4 }), r)).toEqual({
+      oxygen: false,
+      bodyTemp: false,
+      supplies: true,
+    });
   });
 });
 
