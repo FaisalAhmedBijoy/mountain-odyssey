@@ -23,6 +23,10 @@ export class CheckpointSystem {
     return this.camps[this.lastIndex];
   }
 
+  get reachedIds(): ReadonlySet<string> {
+    return this.reached;
+  }
+
   update(feet: Vec3): void {
     this.camps.forEach((camp, index) => {
       if (this.reached.has(camp.id)) return;

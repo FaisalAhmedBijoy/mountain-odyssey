@@ -36,4 +36,11 @@ describe('CheckpointSystem', () => {
     expect(reached).toEqual([]);
     expect(system.last.id).toBe('khare');
   });
+
+  it('exposes the reached camp ids', () => {
+    const { system } = setup();
+    expect([...system.reachedIds]).toEqual(['khare']);
+    system.update({ x: 0, y: 5248, z: 0 });
+    expect([...system.reachedIds]).toEqual(['khare', 'high-camp']);
+  });
 });
