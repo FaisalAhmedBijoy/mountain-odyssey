@@ -20,6 +20,9 @@ describe('CONTROL_HINTS', () => {
     expect(byLabel('Run')).toEqual(['Shift']);
     expect(byLabel('Jump / let go')).toEqual(['Space']);
     expect(byLabel('Grab wall')).toEqual(['E']);
+    expect(byLabel('Eat / drink')).toEqual(['F']);
+    expect(byLabel('Bottled O₂')).toEqual(['O']);
+    expect(byLabel('Rest at camp')).toEqual(['R']);
     expect(byLabel('Route line')).toEqual(['T']);
     expect(byLabel('Camera distance')).toEqual(['C']);
     expect(byLabel('Hide controls')).toEqual(['H']);

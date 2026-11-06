@@ -177,3 +177,10 @@ The −10 supplies cost stops free acclimatization farming, because there is no 
 - **`controlHints` test:** updated for the three new keys.
 - **e2e:** the existing smoke test still passes, and the HUD shows the oxygen bar.
 - **Playtest checklist:** add an M2a section covering a collapse from sprinting at altitude, eating, an O₂ bottle, and resting at High Camp.
+
+## 7. Deviations during planning (2026-11-06)
+
+1. **No "stamina 0 while walking → walk speed × 0.5".** Walking always recovers stamina, so stamina is 0 while walking for a single step at most. The rule would never be felt, so it is left out. `Player` gets no `walkSpeedMul`.
+2. **No `player:rested` event.** Nothing listens to it until save arrives in M2e (YAGNI).
+3. **Out-of-world uses the `fall` respawn cause.** The toast is the same, so there is no separate `outOfWorld` cause.
+4. **`Player` does not expose `exerting`.** `activityOf(state, moving)` in `bodyTemp.ts` derives `idle | walk | exert` from the existing snapshot, and exertion means `activity === 'exert'`.

@@ -14,6 +14,7 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 - **Climbing that feels physical.** You can walk, run, jump and slide. You can grab any steep rock face (≥ 50°) and climb it in four directions, then mantle over the top. Movement uses a Rapier character controller.
 - **Stamina and falls.** Running and climbing drain stamina, and if it runs out on a wall, you fall. A drop of 6–15 m injures you. A drop over 15 m sends you back to the last camp.
 - **Route guide.** An orange ribbon on the ground and trail flags mark the walkable route to the next camp, and a HUD arrow shows the distance. The route is computed when the terrain is baked, and it is guaranteed to stay walkable.
+- **Survival.** Oxygen, warmth and supplies that interact with stamina; rest at camps to acclimatize.
 - **Checkpoints.** Reaching a camp saves your progress, and after a fatal fall you respawn there.
 - **Runs in the browser.** It needs a desktop browser with WebGL2 and nothing to install.
 
@@ -25,6 +26,9 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 | `Shift`         | Run (on slopes under 20°)                                            |
 | `Space`         | Jump; while climbing, let go                                         |
 | `E`             | Grab a steep rock face                                               |
+| `F`             | Eat / drink                                                          |
+| `O`             | Bottled oxygen (10 min per bottle)                                   |
+| `R`             | Rest at a camp                                                       |
 | Mouse / wheel   | Look around / zoom                                                   |
 | `C`             | Cycle camera distance                                                |
 | `T`             | Show or hide the route line                                          |

@@ -1,9 +1,40 @@
 import { useRef } from 'react';
 import { useStore } from 'zustand';
+import { GAME_CONFIG } from '../engine/config/game.config';
 import { gameStore } from '../state/gameStore';
 import { CONTROL_HINTS } from './controlHints';
 import { formatDistance } from './formatDistance';
+import { formatMinSec } from './formatMinSec';
 import { unwrapAngle } from './unwrapAngle';
+
+const WARN = GAME_CONFIG.survival;
+
+interface StatBarProps {
+  label: string;
+  value: number;
+  tone: 'stamina' | 'oxygen' | 'warmth' | 'supplies';
+  cap?: number;
+  warn?: boolean;
+}
+
+function StatBar({ label, value, tone, cap = 100, warn = false }: StatBarProps) {
+  return (
+    <>
+      <div className="hud__label">{label}</div>
+      <div
+        className={`bar${warn ? ' bar--warn' : ''}`}
+        role="meter"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={value}
+      >
+        <div className="bar__cap" style={{ width: `${cap}%` }} />
+        <div className={`bar__fill bar__fill--${tone}`} style={{ width: `${value}%` }} />
+      </div>
+    </>
+  );
+}
 
 export function Hud() {
   const s = useStore(gameStore);
@@ -20,18 +51,31 @@ export function Hud() {
         <div className="hud__altitude" data-testid="altitude">
           {s.altitudeM.toLocaleString('en-US')} m
         </div>
-        <div className="hud__label">Stamina</div>
-        <div
-          className="bar"
-          role="meter"
-          aria-label="Stamina"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={s.stamina}
-        >
-          <div className="bar__cap" style={{ width: `${s.staminaCap}%` }} />
-          <div className="bar__fill" style={{ width: `${s.stamina}%` }} />
+        <StatBar label="Stamina" value={s.stamina} cap={s.staminaCap} tone="stamina" />
+        <StatBar
+          label="Oxygen"
+          value={s.oxygen}
+          tone="oxygen"
+          warn={s.oxygen < WARN.oxygen.warnLow}
+        />
+        <StatBar
+          label="Warmth"
+          value={s.bodyTemp}
+          tone="warmth"
+          warn={s.bodyTemp < WARN.temperature.warnCold}
+        />
+        <StatBar
+          label="Supplies"
+          value={s.supplies}
+          tone="supplies"
+          warn={s.supplies < WARN.supplies.warnLow}
+        />
+        <div className="hud__items" data-testid="items">
+          {`Food ${s.items.food} · Water ${s.items.water} · O₂ ${s.items.o2}`}
         </div>
+        {s.o2SecondsLeft !== null && (
+          <div className="hud__o2">{`O₂ flowing ${formatMinSec(s.o2SecondsLeft)}`}</div>
+        )}
         <div className="hud__meta">
           {s.lastCheckpoint} · {s.moveState}
         </div>
@@ -57,11 +101,17 @@ export function Hud() {
         </div>
       )}
       {s.prompt && <div className="hud__prompt">{s.prompt}</div>}
+      {s.warning && (
+        <div className="hud__warning" aria-live="polite">
+          {s.warning}
+        </div>
+      )}
       {s.toast && (
         <div className="hud__toast" role="status">
           {s.toast}
         </div>
       )}
+      {s.resting && <div className="overlay overlay--rest">Resting…</div>}
       {s.paused && <div className="overlay overlay--pause">Click to play · Esc pause</div>}
       <div
         className={`hud__controls${s.helpOpen ? '' : ' hud__controls--closed'}`}

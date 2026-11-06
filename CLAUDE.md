@@ -45,6 +45,8 @@ Load a specific mountain with `?mountain=<id>` (e.g. `/?mountain=test-peak`); de
 
 **Movement logic is pure and separate from physics:** `movementState.ts` (state machine: walk/run/slide/climb/fall), `stamina.ts` and `fallDamage.ts` are pure functions unit-tested without Rapier. `Player.ts` glues them to physics and raycasts. Fall damage is scored per segment: airborne falls plus sliding on ground ≥ 50° (`minClimbSlopeDeg`) accumulate; a gentle (33–50°) slide, a landing, or grabbing a wall scores the pending segment. Gentle slides never damage.
 
+**Survival is pure too:** `src/engine/survival/` holds oxygen, body temperature, supplies and inventory rules (`survival.ts` combines them). `SurvivalSystem` turns `F` / `O` / `R` into state changes and toasts, and `Game` runs it every step after the player, forwards `survival.modifiers` to `Player` (stamina recovery, stamina cap, climb speed), and respawns on `collapse` or `hypothermia` like a fatal fall. Rest pauses survival for `restSeconds`.
+
 **Terrain is data, not code:**
 
 - Offline: `tools/terrain/bake.py` crops the Copernicus GLO-30 DEM, resamples it to a 2 m local metric grid, adds detail noise, places camps on one connected walkable region (slope < 30°, stricter than the engine) near each target elevation, validates that consecutive camps are walk-connected and that every route stays below `routeMaxSlopeDeg` (33°, equal to `GAME_CONFIG.movement.maxWalkSlopeDeg`) on the 2 m cells it crosses (bake fails otherwise) and writes `manifest.json`, `backdrop.u16` and `tiles/<tx>_<tz>.u16`.

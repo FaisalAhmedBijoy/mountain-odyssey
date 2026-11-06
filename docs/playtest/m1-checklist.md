@@ -37,3 +37,12 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] Each player reached High Camp without help.
 - [ ] Each player rated "climbing is fun" ≥ 3/5.
 - [ ] Notes on what felt bad: ______
+
+## Survival (M2a)
+
+- [ ] Oxygen, Warmth and Supplies bars and the item row (Food 4 · Water 4 · O₂ 2) show at Khare.
+- [ ] Sprinting and climbing near High Camp drains oxygen; a warning appears below 25; stopping recovers it; draining it to 0 respawns with "You collapsed from lack of oxygen".
+- [ ] `F` eats food then water, only when supplies are below full.
+- [ ] `O` starts a 10-minute bottle; the timer shows; oxygen rises.
+- [ ] At a camp, "R — Rest" shows; resting fades the screen ~3 s, refills stamina and warmth and shows the acclimatization toast; away from camp `R` explains why it cannot rest.
+- [ ] Standing still for a long time high up drains warmth; below 30 climbing is visibly slower.
