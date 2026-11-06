@@ -33,7 +33,7 @@ function StatBar({ label, value, tone, cap = 100, warn = false }: StatBarProps) 
   );
 }
 
-export function Hud() {
+export function Hud({ onExit }: { onExit?: () => void }) {
   const s = useStore(gameStore);
   // Unwrapped arrow rotation: each bearing is taken the short way from the last one.
   // Idempotent for a repeated bearing, so a double render (StrictMode) is harmless.
@@ -94,7 +94,16 @@ export function Hud() {
         </div>
       )}
       {s.resting && <div className="overlay overlay--rest">Resting…</div>}
-      {s.paused && <div className="overlay overlay--pause">Click to play · Esc pause</div>}
+      {s.paused && (
+        <div className="overlay overlay--pause">
+          <p>Click to play · Esc pause</p>
+          {onExit && (
+            <button type="button" className="overlay__action" onClick={onExit}>
+              Choose another mountain
+            </button>
+          )}
+        </div>
+      )}
       <div
         className={`hud__controls${s.helpOpen ? '' : ' hud__controls--closed'}`}
         data-testid="controls"

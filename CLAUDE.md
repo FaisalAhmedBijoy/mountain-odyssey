@@ -33,7 +33,7 @@ npm run terrain:mera   # bake Mera Peak from Copernicus DEM (network, ~25 MB) ->
 
 Production: pushes to `main` that pass CI are deployed to GitHub Pages (`.github/workflows/deploy.yml`, site under `/mountain-odyssey/`). Static files in `public/` must be referenced through `assetUrl()` (`src/app/assetUrl.ts`), never with a leading `/`, so they resolve under that base path. Local check: `VITE_BASE=/mountain-odyssey/ npm run build && npx vite preview --base /mountain-odyssey/`.
 
-Load a specific mountain with `?mountain=<id>` (e.g. `/?mountain=test-peak`); default is `mera-peak`.
+Without a query the app opens on the country menu (country → mountain → game). `?mountain=<id>` (e.g. `/?mountain=test-peak`) skips the menus and loads that mountain directly.
 
 ## Architecture
 
@@ -55,7 +55,7 @@ Load a specific mountain with `?mountain=<id>` (e.g. `/?mountain=test-peak`); de
 - World axes: x = east, z = south, y = up (real elevation in metres). Camera yaw 0 looks toward −Z (north).
 - Runtime: `ChunkManager` streams tiles around the player in LOD rings (`GAME_CONFIG.terrain.lodRings`), builds meshes off-thread (`meshBuilder.worker.ts`), keeps Rapier heightfield colliders only for the 3 × 3 tiles around the player, and redraws a low-res backdrop mesh with a hole where chunks are. `TerrainSampler` answers CPU height, normal and slope queries for gameplay and the camera.
 - Rapier heightfields are column-major; `PhysicsWorld.addTerrainTile` transposes. Its test uses an asymmetric surface to catch mistakes.
-- Adding a mountain = a bake config + `src/data/mountains/<id>.json`, with no engine changes. `public/terrain/` is generated and git-ignored.
+- Adding a mountain = a bake config + `src/data/mountains/<id>.json` + setting `mountainId` on its entry in `src/data/catalog.ts` (which lists every country and peak on the menu), with no engine changes. `public/terrain/` is generated and git-ignored.
 
 **Tuning:** every gameplay number (speeds, slope thresholds, stamina rates, fall heights, camera, LOD) lives in `src/engine/config/game.config.ts`. Systems must read from it rather than hard-code values.
 

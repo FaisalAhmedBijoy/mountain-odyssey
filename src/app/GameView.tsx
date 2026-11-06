@@ -9,7 +9,7 @@ import { assetUrl } from './assetUrl';
 
 const CHARACTER_URL = assetUrl('models/RobotExpressive.glb');
 
-export function GameView({ mountain }: { mountain: MountainDef }) {
+export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const status = useStore(gameStore, (s) => s.status);
   const error = useStore(gameStore, (s) => s.error);
@@ -57,7 +57,12 @@ export function GameView({ mountain }: { mountain: MountainDef }) {
   }, [mountain]);
 
   return (
-    <div className="game-root" ref={containerRef}>
+    <div
+      className="game-root"
+      ref={containerRef}
+      data-testid="game-root"
+      data-mountain={mountain.id}
+    >
       {status === 'loading' && <div className="overlay">Loading {mountain.facts.name}…</div>}
       {status === 'error' && (
         <div className="overlay overlay--error" role="alert">
@@ -67,7 +72,7 @@ export function GameView({ mountain }: { mountain: MountainDef }) {
           </button>
         </div>
       )}
-      {status === 'ready' && <Hud />}
+      {status === 'ready' && <Hud onExit={onExit} />}
     </div>
   );
 }
