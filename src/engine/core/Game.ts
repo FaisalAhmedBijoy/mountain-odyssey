@@ -5,7 +5,10 @@ import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { MoveInput } from '../player/movementState';
 import { Player } from '../player/Player';
 import { PlayerVisual } from '../player/PlayerVisual';
+import { SurvivalSystem, type SurvivalActions } from '../survival/SurvivalSystem';
+import { WARNING_TEXT } from '../survival/survival';
 import { CheckpointSystem } from '../systems/CheckpointSystem';
+import { campAt } from '../systems/camps';
 import { RouteGuide, type GuideHud } from '../systems/RouteGuide';
 import { activeRoute } from '../systems/routeMath';
 import { ChunkManager } from '../world/ChunkManager';
@@ -16,11 +19,17 @@ import { loadManifest, type CampDef, type TerrainManifest } from '../world/terra
 import { TerrainSampler } from '../world/TerrainSampler';
 import { isOutOfWorld } from '../world/worldBounds';
 import { EventBus } from './EventBus';
-import type { GameEvents } from './events';
+import type { GameEvents, RespawnCause } from './events';
 import { GameLoop } from './GameLoop';
 import type { HudState } from './hud';
 import { InputManager } from './InputManager';
 import type { Vec3 } from './math';
+
+const RESPAWN_TOAST: Record<RespawnCause, string> = {
+  fall: 'You fell.',
+  collapse: 'You collapsed from lack of oxygen.',
+  hypothermia: 'Hypothermia.',
+};
 
 export interface GameOptions {
   canvas: HTMLCanvasElement;
@@ -40,6 +49,7 @@ interface World {
   cameraCtrl: ThirdPersonCamera;
   checkpoints: CheckpointSystem;
   guide: RouteGuide;
+  survival: SurvivalSystem;
 }
 
 /** Composition root: owns the renderer, systems and loop. The only API React uses. */
@@ -54,7 +64,7 @@ export class Game {
   private readonly resizeObserver: ResizeObserver;
   private cleanup: (() => void)[] = [];
   private w: World | null = null;
-  private pendingRespawn = false;
+  private pendingRespawn: RespawnCause | null = null;
   private respawning = false;
   private failed = false;
   private toast: { text: string; until: number } | null = null;
@@ -189,6 +199,7 @@ export class Game {
         this.events,
       ),
       guide,
+      survival: new SurvivalSystem(cfg.survival, player.snapshot.feet.y),
     };
     this.wireEvents();
     this.setActiveRoute(start.id);
@@ -219,11 +230,11 @@ export class Game {
         this.setActiveRoute(id);
       }),
       this.events.on('player:fell', ({ outcome }) => {
-        if (outcome === 'fatal') this.pendingRespawn = true;
+        if (outcome === 'fatal') this.pendingRespawn ??= 'fall';
         else this.showToast('Injured — maximum stamina reduced');
       }),
-      this.events.on('player:respawned', ({ checkpointName }) =>
-        this.showToast(`You fell. Back at ${checkpointName}.`),
+      this.events.on('player:respawned', ({ checkpointName, cause }) =>
+        this.showToast(`${RESPAWN_TOAST[cause]} Back at ${checkpointName}.`),
       ),
     );
   }
@@ -260,6 +271,17 @@ export class Game {
   private step(dt: number): void {
     const w = this.w;
     if (!w || this.respawning) return;
+    const actions: SurvivalActions = {
+      eat: this.input.consumePressed('eat'),
+      oxygen: this.input.consumePressed('oxygen'),
+      rest: this.input.consumePressed('rest'),
+    };
+    if (w.survival.resting) {
+      // The player stands still during the rest fade; drop any keys pressed meanwhile.
+      this.input.reset();
+      this.stepSurvival(w, actions, dt);
+      return;
+    }
     const axis = this.input.axis();
     const move: MoveInput = {
       forward: axis.forward,
@@ -273,14 +295,36 @@ export class Game {
     w.player.step(move, w.cameraCtrl.yaw, dt);
     w.physics.step(dt);
     w.player.afterPhysics();
+    this.stepSurvival(w, actions, dt);
     const feet = w.player.snapshot.feet;
     // Beyond the outer tiles there is no collider: treat it like a fatal fall.
-    if (isOutOfWorld(feet, w.manifest, cfg.terrain.outOfWorldDropM)) this.pendingRespawn = true;
+    if (isOutOfWorld(feet, w.manifest, cfg.terrain.outOfWorldDropM)) this.pendingRespawn ??= 'fall';
     else w.checkpoints.update(feet);
     if (this.pendingRespawn) {
-      this.pendingRespawn = false;
-      void this.respawn();
+      const cause = this.pendingRespawn;
+      this.pendingRespawn = null;
+      void this.respawn(cause);
     }
+  }
+
+  private stepSurvival(w: World, actions: SurvivalActions, dt: number): void {
+    const s = w.player.snapshot;
+    const out = w.survival.step(
+      {
+        altitudeM: s.feet.y,
+        state: s.state,
+        moving: s.moving,
+        grounded: s.grounded,
+        atCamp: campAt(s.feet, w.manifest.camps, cfg.checkpoints) !== null,
+        windMs: 0, // calm until the weather system (M2c)
+        actions,
+      },
+      dt,
+    );
+    w.player.setSurvivalModifiers(w.survival.modifiers);
+    if (out.restFinished) w.player.restoreStamina();
+    if (out.toast) this.showToast(out.toast);
+    if (out.death) this.pendingRespawn ??= out.death;
   }
 
   private render(alpha: number, frameDt: number): void {
@@ -302,7 +346,7 @@ export class Game {
       feet,
       snap.facingYaw,
       snap.state,
-      snap.moving,
+      snap.moving && !w.survival.resting,
       this.loop.isPaused ? 0 : frameDt,
     );
     w.cameraCtrl.update(feet, snap.state === 'climb', frameDt);
@@ -313,7 +357,7 @@ export class Game {
     this.publishHud(frameDt);
   }
 
-  private async respawn(): Promise<void> {
+  private async respawn(cause: RespawnCause): Promise<void> {
     const w = this.w;
     if (!w) return;
     const camp = w.checkpoints.last;
@@ -328,10 +372,17 @@ export class Game {
     }
     if (this.w !== w) return;
     try {
-      w.player.teleport(this.spawnPoint(w.sampler, camp));
+      const spawn = this.spawnPoint(w.sampler, camp);
+      w.player.teleport(spawn);
+      w.survival.respawn(spawn.y);
+      w.player.setSurvivalModifiers(w.survival.modifiers);
       w.cameraCtrl.snap();
       this.setActiveRoute(camp.id);
-      this.events.emit('player:respawned', { checkpointId: camp.id, checkpointName: camp.name });
+      this.events.emit('player:respawned', {
+        checkpointId: camp.id,
+        checkpointName: camp.name,
+        cause,
+      });
     } catch (err) {
       this.fail(err);
     }
@@ -353,12 +404,26 @@ export class Game {
     this.hudElapsedMs = 0;
     if (this.toast && performance.now() > this.toast.until) this.toast = null;
     const s = w.player.snapshot;
+    const sv = w.survival.state;
+    const warning = w.survival.warning;
+    const canRest =
+      !w.survival.resting &&
+      s.grounded &&
+      s.state !== 'climb' &&
+      campAt(s.feet, w.manifest.camps, cfg.checkpoints) !== null;
     this.o.publish({
       altitudeM: Math.round(s.feet.y),
       stamina: Math.round(s.stamina.value),
       staminaCap: Math.round(s.stamina.cap),
       moveState: s.state,
-      prompt: s.prompt,
+      prompt: s.prompt ?? (canRest ? 'R — Rest' : null),
+      oxygen: Math.round(sv.oxygen),
+      bodyTemp: Math.round(sv.bodyTemp),
+      supplies: Math.round(sv.supplies),
+      items: { ...sv.inventory },
+      o2SecondsLeft: sv.o2SecondsLeft > 0 ? Math.ceil(sv.o2SecondsLeft) : null,
+      warning: warning ? WARNING_TEXT[warning] : null,
+      resting: w.survival.resting,
       toast: this.toast?.text ?? null,
       fps,
       guide: this.guideHud,
