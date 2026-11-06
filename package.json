@@ -20,7 +20,8 @@
     "e2e": "playwright test",
     "terrain:test": "python3 tools/terrain/bake.py --synthetic --out public/terrain/test-peak",
     "terrain:mera": "python3 tools/terrain/bake.py --config tools/terrain/mera-peak.config.json --out public/terrain/mera-peak",
-    "terrain:keokradong": "python3 tools/terrain/bake.py --config tools/terrain/keokradong.config.json --out public/terrain/keokradong"
+    "terrain:keokradong": "python3 tools/terrain/bake.py --config tools/terrain/keokradong.config.json --out public/terrain/keokradong",
+    "terrain:patharia": "python3 tools/terrain/bake.py --config tools/terrain/patharia.config.json --out public/terrain/patharia"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

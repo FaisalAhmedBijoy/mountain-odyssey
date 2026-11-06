@@ -150,6 +150,14 @@ def summit_walkable(cfg: dict) -> bool:
     return value
 
 
+def summit_name(cfg: dict) -> str:
+    """Display name of the appended summit camp: `summitName` or "Summit"."""
+    value = cfg.get("summitName", "Summit")
+    if not isinstance(value, str):
+        raise ValueError(f"summitName must be a string, got {value!r}")
+    return value
+
+
 def bake_dem(config_path: str, out: str) -> dict:
     with open(config_path) as f:
         cfg = json.load(f)
@@ -184,7 +192,7 @@ def bake_dem(config_path: str, out: str) -> dict:
         {"id": c["id"], "name": c["name"], "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
         for c, rc in zip(cfg["camps"], cells)
     ]
-    camps.append({"id": "summit", "name": "Summit", "position": cell_to_world(summit, spec.origin, spec.spacing_m, h)})
+    camps.append({"id": "summit", "name": summit_name(cfg), "position": cell_to_world(summit, spec.origin, spec.spacing_m, h)})
     return write_terrain(out, cfg["id"], h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
                          cfg["attribution"], cfg["backdropSpacingM"], routes=routes,
                          route_max_slope_deg=route_limit)

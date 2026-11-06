@@ -1,0 +1,27 @@
+{
+  "id": "patharia",
+  "centerLat": 24.64,
+  "centerLon": 92.24,
+  "tiles": 24,
+  "tileCells": 256,
+  "spacingM": 2,
+  "coarseSpacingM": 8,
+  "backdropSpacingM": 64,
+  "noiseSeed": 235,
+  "summitSearchRadiusM": 1500,
+  "summitWalkable": true,
+  "summitName": "Ridge Top",
+  "campPlacement": {
+    "maxWalkSlopeDeg": 30,
+    "routeMaxSlopeDeg": 33,
+    "analysisSpacingM": 8,
+    "toleranceM": 30,
+    "spawnRadiusM": 6
+  },
+  "demUrl": "/vsicurl/https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N24_00_E092_00_DEM/Copernicus_DSM_COG_10_N24_00_E092_00_DEM.tif",
+  "attribution": "Contains modified Copernicus DEM data",
+  "camps": [
+    { "id": "tea-estate", "name": "Tea Estate", "targetElevationM": 40 },
+    { "id": "madhabkunda", "name": "Madhabkunda", "targetElevationM": 110 }
+  ]
+}

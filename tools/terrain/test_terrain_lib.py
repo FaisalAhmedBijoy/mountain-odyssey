@@ -712,6 +712,37 @@ def test_summit_walkable_rejects_non_boolean_values(value):
         summit_walkable({"summitWalkable": value})
 
 
+def test_summit_name_defaults_to_summit():
+    from bake import summit_name
+
+    assert summit_name({}) == "Summit"
+
+
+def test_summit_name_uses_the_config_value():
+    from bake import summit_name
+
+    assert summit_name({"summitName": "Ridge Top"}) == "Ridge Top"
+
+
+@pytest.mark.parametrize("bad", [1, True, None, ["Ridge Top"]])
+def test_summit_name_must_be_a_string(bad):
+    from bake import summit_name
+
+    with pytest.raises(ValueError):
+        summit_name({"summitName": bad})
+
+
+def test_patharia_config():
+    cfg = json.loads((Path(__file__).parent / "patharia.config.json").read_text())
+    assert cfg["summitWalkable"] is True
+    assert cfg["summitName"] == "Ridge Top"
+    assert [c["id"] for c in cfg["camps"]] == ["tea-estate", "madhabkunda"]
+    targets = [c["targetElevationM"] for c in cfg["camps"]]
+    assert targets == sorted(targets)
+    assert cfg["campPlacement"]["routeMaxSlopeDeg"] <= 33
+    assert cfg["attribution"] == "Contains modified Copernicus DEM data"
+
+
 def test_synthetic_summit_walk_gets_a_route_ending_at_the_summit():
     from bake import TEST_PEAK_SPEC, synthetic_terrain
 
