@@ -38,3 +38,10 @@ test('leaves a deep-linked game for the country screen', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Choose a country' })).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test('an unknown mountain id offers a way to the menu', async ({ page }) => {
+  await page.goto('/?mountain=nowhere');
+  await expect(page.getByRole('alert')).toContainText('Unknown mountain "nowhere".');
+  await page.getByRole('button', { name: 'Choose a mountain' }).click();
+  await expect(page.getByRole('heading', { name: 'Choose a country' })).toBeVisible();
+});

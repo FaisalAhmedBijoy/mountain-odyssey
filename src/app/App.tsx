@@ -13,10 +13,21 @@ type Screen =
   | { screen: 'game'; mountain: MountainDef; country: CountryCode | null }
   | { screen: 'unknown'; id: string };
 
-function Unsupported({ message }: { message: string }) {
+function Unsupported({
+  message,
+  action,
+}: {
+  message: string;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
     <div className="overlay overlay--error" role="alert">
       <p>{message}</p>
+      {action && (
+        <button type="button" onClick={action.onClick}>
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }
@@ -60,7 +71,18 @@ function Screens() {
         />
       );
     case 'unknown':
-      return <Unsupported message={`Unknown mountain "${screen.id}".`} />;
+      return (
+        <Unsupported
+          message={`Unknown mountain "${screen.id}".`}
+          action={{
+            label: 'Choose a mountain',
+            onClick: () => {
+              window.history.replaceState(null, '', window.location.pathname);
+              setScreen({ screen: 'countries' });
+            },
+          }}
+        />
+      );
   }
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import type { MountainDef } from '../data/mountains';
 import { Game } from '../engine/core/Game';
@@ -11,6 +11,7 @@ const CHARACTER_URL = assetUrl('models/RobotExpressive.glb');
 
 export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [attempt, setAttempt] = useState(0);
   const status = useStore(gameStore, (s) => s.status);
   const error = useStore(gameStore, (s) => s.error);
 
@@ -53,8 +54,9 @@ export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: 
       cancelled = true;
       game?.dispose();
       canvas.remove();
+      gameStore.setState(initialHudState, true);
     };
-  }, [mountain]);
+  }, [mountain, attempt]);
 
   return (
     <div
@@ -67,8 +69,11 @@ export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: 
       {status === 'error' && (
         <div className="overlay overlay--error" role="alert">
           <p>{error}</p>
-          <button type="button" onClick={() => window.location.reload()}>
+          <button type="button" onClick={() => setAttempt((n) => n + 1)}>
             Retry
+          </button>
+          <button type="button" onClick={onExit}>
+            Choose another mountain
           </button>
         </div>
       )}

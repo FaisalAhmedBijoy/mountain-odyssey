@@ -15,7 +15,7 @@ export function MenuScreen({ subtitle, back, children }: MenuScreenProps) {
       <header className="menu__header">
         {back && (
           <button type="button" className="menu__back" onClick={back.onClick}>
-            ‹ {back.label}
+            <span aria-hidden="true">‹</span> {back.label}
           </button>
         )}
         <h1 className="menu__title">Mountain Odyssey</h1>

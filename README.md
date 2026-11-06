@@ -50,7 +50,7 @@ The game opens on a country menu: pick Nepal, then Mera Peak (other peaks show "
 
 | Mountain         | URL                                                                                               | Notes                                                                     |
 | ---------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Mera Peak, Nepal | [`/`](https://faisalahmedbijoy.github.io/mountain-odyssey/)                                       | Real DEM terrain. The route from Khare to High Camp is about 4.1 km.      |
+| Mera Peak, Nepal | [`/?mountain=mera-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=mera-peak) | Real DEM terrain. The route from Khare to High Camp is about 4.1 km.      |
 | Test Peak        | [`/?mountain=test-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=test-peak) | A small synthetic mountain with an 8 m cliff ring, for practice and tests |
 
 The menu also lists Island Peak, Everest, Kangchenjunga, Nanda Devi, Stok Kangri, Saka Haphong and Keokradong as coming soon.
