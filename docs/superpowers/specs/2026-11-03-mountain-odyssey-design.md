@@ -83,6 +83,8 @@ Every feature must serve at least one pillar. Features that serve none are cut.
 5. **Gameplay** — climb from Khare to the summit, resting and saving at camps.
 6. **Results** — outcome (summit / abandoned), total time, falls, camps used, supplies remaining.
 
+**Deviation (country and mountain select, 2026-11-06):** a **Country select** screen (Nepal, India, Bangladesh) now comes before Mountain Select, and Mountain Select shows the chosen country's peaks as cards instead of a Nepal map. Unbaked peaks show "Coming soon". The pause overlay can return to Mountain Select. Details: `2026-11-06-country-mountain-select-design.md`.
+
 ### 3.2 Core loop
 
 ```
