@@ -44,7 +44,7 @@ function hash(i: number, j: number, salt: number): number {
 }
 
 /** Squared distance from (px, pz) to segment a–b in the XZ plane. */
-function segmentDistSq(px: number, pz: number, a: P3, b: P3): number {
+export function segmentDistSq(px: number, pz: number, a: P3, b: P3): number {
   const dx = b[0] - a[0];
   const dz = b[2] - a[2];
   const len = dx * dx + dz * dz;
