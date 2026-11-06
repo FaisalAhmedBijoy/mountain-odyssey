@@ -116,6 +116,11 @@ export class ChunkManager {
 
   constructor(private readonly d: ChunkManagerDeps) {}
 
+  /** The low-res backdrop heights once `loadBackdrop` has finished (used for the map). */
+  get backdropData(): Backdrop | null {
+    return this.backdrop;
+  }
+
   async loadBackdrop(): Promise<void> {
     this.backdrop = await loadBackdrop(this.d.baseUrl, this.d.manifest, this.d.fetchFn);
   }

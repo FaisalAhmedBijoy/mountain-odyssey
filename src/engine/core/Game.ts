@@ -14,6 +14,15 @@ import { activeRoute } from '../systems/routeMath';
 import { ChunkManager } from '../world/ChunkManager';
 import { Environment } from '../world/Environment';
 import { SyncMeshBuilder, WorkerMeshBuilder, type MeshBuilder } from '../world/meshBuilder';
+import { buildMapImage } from '../world/mapImage';
+import {
+  campProgress,
+  mapBounds,
+  mapHeading,
+  simplifyRoute,
+  worldToMap,
+  type MapBounds,
+} from '../world/mapMath';
 import { NO_GEAR } from '../world/surface';
 import { loadManifest, type CampDef, type TerrainManifest } from '../world/terrainData';
 import { TerrainSampler } from '../world/TerrainSampler';
@@ -22,7 +31,7 @@ import { EventBus } from './EventBus';
 import { TreeSystem } from '../world/TreeSystem';
 import type { GameEvents, RespawnCause } from './events';
 import { GameLoop } from './GameLoop';
-import type { HudState } from './hud';
+import type { HudState, MapInfo } from './hud';
 import { InputManager } from './InputManager';
 import type { Vec3 } from './math';
 
@@ -53,6 +62,8 @@ interface World {
   checkpoints: CheckpointSystem;
   guide: RouteGuide;
   survival: SurvivalSystem;
+  mapBounds: MapBounds;
+  campIds: string[];
 }
 
 /** Composition root: owns the renderer, systems and loop. The only API React uses. */
@@ -75,6 +86,7 @@ export class Game {
   private hudFrames = 0;
   private guideHud: GuideHud | null = null;
   private helpOpen = true;
+  private mapOpen = false;
 
   static async create(options: GameOptions): Promise<Game> {
     const game = new Game(options);
@@ -209,11 +221,34 @@ export class Game {
       ),
       guide,
       survival: new SurvivalSystem(cfg.survival, player.snapshot.feet.y),
+      mapBounds: mapBounds(manifest),
+      campIds: manifest.camps.map((c) => c.id),
     };
     this.wireEvents();
     this.setActiveRoute(start.id);
     this.attachDom();
+    const backdrop = chunks.backdropData;
+    const bounds = this.w.mapBounds;
+    const map: MapInfo | null = backdrop
+      ? {
+          image: buildMapImage(backdrop, cfg.biomes[o.biome].palette, cfg.surface),
+          sizeM: { x: bounds.sizeX, z: bounds.sizeZ },
+          camps: manifest.camps.map((c) => ({
+            id: c.id,
+            name: c.name,
+            elevationM: Math.round(c.position[1]),
+            ...worldToMap(c.position[0], c.position[2], bounds),
+          })),
+          routes: (manifest.routes ?? []).map((r) =>
+            simplifyRoute(r.points, cfg.map.routeSpacingM).map((p) =>
+              worldToMap(p[0], p[2], bounds),
+            ),
+          ),
+        }
+      : null;
     o.publish({
+      map,
+      mapOpen: this.mapOpen,
       status: 'ready',
       paused: true,
       attribution: manifest.attribution,
@@ -349,6 +384,10 @@ export class Game {
       this.helpOpen = !this.helpOpen;
       this.o.publish({ helpOpen: this.helpOpen });
     }
+    if (this.input.consumePressed('toggleMap')) {
+      this.mapOpen = !this.mapOpen;
+      this.o.publish({ mapOpen: this.mapOpen });
+    }
     if (!this.loop.isPaused) {
       w.cameraCtrl.applyMouse(mouse.dx, mouse.dy);
       w.cameraCtrl.applyWheel(mouse.wheel);
@@ -428,6 +467,11 @@ export class Game {
       s.state !== 'climb' &&
       campAt(s.feet, w.manifest.camps, cfg.checkpoints) !== null;
     this.o.publish({
+      mapPlayer: {
+        ...worldToMap(s.feet.x, s.feet.z, w.mapBounds),
+        headingRad: mapHeading(s.facingYaw),
+      },
+      mapCamps: campProgress(w.campIds, w.checkpoints.reachedIds, w.checkpoints.last.id),
       altitudeM: Math.round(s.feet.y),
       stamina: Math.round(s.stamina.value),
       staminaCap: Math.round(s.stamina.cap),

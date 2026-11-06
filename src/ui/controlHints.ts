@@ -33,6 +33,7 @@ export const CONTROL_HINTS: ControlHint[] = [
   { keys: ['Wheel'], label: 'Zoom' },
   { keys: keysFor('cameraDistance'), label: 'Camera distance' },
   { keys: keysFor('toggleRoute'), label: 'Route line' },
+  { keys: keysFor('toggleMap'), label: 'Map' },
   { keys: [keyLabel('Escape')], label: 'Pause' },
   { keys: keysFor('toggleHelp'), label: 'Hide controls' },
 ];

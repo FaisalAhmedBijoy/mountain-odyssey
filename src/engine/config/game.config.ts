@@ -167,6 +167,8 @@ export const GAME_CONFIG = {
     markerPoleColor: 0x8b6b3d,
     markerFlagColor: 0xd7263d,
   },
+  /** Map (map spec §3–5). */
+  map: { routeSpacingM: 40, minimapSpanM: 1200 },
 } as const;
 
 export type BiomeId = keyof typeof GAME_CONFIG.biomes;

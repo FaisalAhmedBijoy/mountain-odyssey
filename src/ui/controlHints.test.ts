@@ -24,6 +24,7 @@ describe('CONTROL_HINTS', () => {
     expect(byLabel('Bottled O₂')).toEqual(['O']);
     expect(byLabel('Rest at camp')).toEqual(['R']);
     expect(byLabel('Route line')).toEqual(['T']);
+    expect(byLabel('Map')).toEqual(['Tab']);
     expect(byLabel('Camera distance')).toEqual(['C']);
     expect(byLabel('Hide controls')).toEqual(['H']);
   });

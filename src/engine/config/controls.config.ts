@@ -12,6 +12,7 @@ export const CONTROLS = {
   rest: ['KeyR'],
   cameraDistance: ['KeyC'],
   toggleRoute: ['KeyT'],
+  toggleMap: ['Tab'],
   toggleHelp: ['KeyH'],
 } as const satisfies Record<string, readonly string[]>;
 
