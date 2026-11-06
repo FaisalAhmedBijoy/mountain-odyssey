@@ -25,9 +25,18 @@ export interface DesiredChunk {
   step: number;
 }
 
-interface TileIndex {
+export interface TileIndex {
   tx: number;
   tz: number;
+}
+
+export function tileIndexAt(m: TerrainManifest, x: number, z: number): TileIndex {
+  const size = (m.tileSamples - 1) * m.spacingM;
+  const clampIndex = (v: number, n: number) => Math.min(Math.max(Math.floor(v), 0), n - 1);
+  return {
+    tx: clampIndex((x - m.originX) / size, m.tilesX),
+    tz: clampIndex((z - m.originZ) / size, m.tilesZ),
+  };
 }
 
 export function desiredChunks(
@@ -131,13 +140,7 @@ export class ChunkManager {
   }
 
   private tileIndexAt(x: number, z: number): TileIndex {
-    const m = this.d.manifest;
-    const size = (m.tileSamples - 1) * m.spacingM;
-    const clampIndex = (v: number, n: number) => Math.min(Math.max(Math.floor(v), 0), n - 1);
-    return {
-      tx: clampIndex((x - m.originX) / size, m.tilesX),
-      tz: clampIndex((z - m.originZ) / size, m.tilesZ),
-    };
+    return tileIndexAt(this.d.manifest, x, z);
   }
 
   private async drain(): Promise<void> {

@@ -19,6 +19,7 @@ import { loadManifest, type CampDef, type TerrainManifest } from '../world/terra
 import { TerrainSampler } from '../world/TerrainSampler';
 import { isOutOfWorld } from '../world/worldBounds';
 import { EventBus } from './EventBus';
+import { TreeSystem } from '../world/TreeSystem';
 import type { GameEvents, RespawnCause } from './events';
 import { GameLoop } from './GameLoop';
 import type { HudState } from './hud';
@@ -45,6 +46,7 @@ interface World {
   physics: PhysicsWorld;
   sampler: TerrainSampler;
   chunks: ChunkManager;
+  trees: TreeSystem | null;
   player: Player;
   visual: PlayerVisual;
   cameraCtrl: ThirdPersonCamera;
@@ -165,6 +167,10 @@ export class Game {
       material.dispose();
     });
 
+    const treeRules = cfg.biomes[o.biome].trees;
+    const trees = treeRules ? new TreeSystem(this.scene, manifest, sampler, treeRules) : null;
+    if (trees) this.cleanup.push(() => trees.dispose());
+
     await chunks.loadBackdrop();
     const start = manifest.camps[0];
     await chunks.update(start.position[0], start.position[2]);
@@ -191,6 +197,7 @@ export class Game {
       physics,
       sampler,
       chunks,
+      trees,
       player,
       visual,
       cameraCtrl: new ThirdPersonCamera(this.camera, (x, z) => sampler.heightAt(x, z)),
@@ -359,6 +366,7 @@ export class Game {
     this.guideHud = w.guide.update(feet, w.cameraCtrl.yaw);
     this.environment.follow(feet);
     if (!this.respawning) w.chunks.update(feet.x, feet.z).catch((err: unknown) => this.fail(err));
+    if (!this.respawning) w.trees?.update(feet.x, feet.z);
     this.renderer.render(this.scene, this.camera);
     this.publishHud(frameDt);
   }
