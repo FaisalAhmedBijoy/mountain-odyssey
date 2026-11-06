@@ -171,4 +171,4 @@ See [`CREDITS.md`](CREDITS.md) for the full list.
 
 ## License
 
-No license has been chosen yet, so all rights are reserved by the author for now. The third-party assets and data above keep their own licences.
+The source code is released under the [MIT License](LICENSE). Third-party assets and data (see [CREDITS.md](CREDITS.md)) keep their own licences, including the Copernicus DEM terms.
