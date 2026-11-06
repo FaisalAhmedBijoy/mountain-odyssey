@@ -451,3 +451,55 @@ body,
     transition: none;
   }
 }
+
+.minimap {
+  position: absolute;
+  top: 34px;
+  right: 16px;
+  width: 180px;
+  height: 180px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: #0d1117;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.fullmap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  background: rgba(13, 17, 23, 0.7);
+  pointer-events: none;
+}
+
+.fullmap__title {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.fullmap__canvas {
+  width: min(80vh, 80vw);
+  height: min(80vh, 80vw);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.fullmap__footer {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -81,7 +81,7 @@ export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: 
           </button>
         </div>
       )}
-      {status === 'ready' && <Hud onExit={onExit} />}
+      {status === 'ready' && <Hud onExit={onExit} mountainName={mountain.facts.name} />}
     </div>
   );
 }

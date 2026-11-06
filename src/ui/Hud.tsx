@@ -4,6 +4,8 @@ import { gameStore } from '../state/gameStore';
 import { CONTROL_HINTS } from './controlHints';
 import { formatDistance } from './formatDistance';
 import { formatMinSec } from './formatMinSec';
+import { FullMap } from './map/FullMap';
+import { Minimap } from './map/Minimap';
 import { unwrapAngle } from './unwrapAngle';
 
 interface StatBarProps {
@@ -33,7 +35,7 @@ function StatBar({ label, value, tone, cap = 100, warn = false }: StatBarProps) 
   );
 }
 
-export function Hud({ onExit }: { onExit?: () => void }) {
+export function Hud({ onExit, mountainName }: { onExit?: () => void; mountainName: string }) {
   const s = useStore(gameStore);
   // Unwrapped arrow rotation: each bearing is taken the short way from the last one.
   // Idempotent for a repeated bearing, so a double render (StrictMode) is harmless.
@@ -93,6 +95,7 @@ export function Hud({ onExit }: { onExit?: () => void }) {
           {s.toast}
         </div>
       )}
+      <FullMap mountainName={mountainName} />
       {s.resting && <div className="overlay overlay--rest">Resting…</div>}
       {s.paused && (
         <div className="overlay overlay--pause">
@@ -130,6 +133,7 @@ export function Hud({ onExit }: { onExit?: () => void }) {
         )}
       </div>
       <div className="hud__fps">{s.fps} FPS</div>
+      <Minimap />
       <div className="hud__credit">{s.attribution}</div>
     </div>
   );

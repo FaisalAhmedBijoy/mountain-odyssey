@@ -55,3 +55,10 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] The orange route runs Boga Lake → Camp 1 → Camp 2 → Summit with no trees on it.
 - [ ] The Summit checkpoint is reachable on foot.
 - [ ] FPS stays ≥ 30 among the trees.
+
+## Map
+
+- [ ] The minimap shows the route, the camps and an arrow that turns with your walking direction, with north up.
+- [ ] Tab opens the full map, with every camp's name and elevation and "Next: … · distance".
+- [ ] Reaching a camp turns its dot green, and the next camp turns yellow.
+- [ ] FPS is unaffected.

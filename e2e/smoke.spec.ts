@@ -28,3 +28,19 @@ test('shows a clear error for an unknown mountain', async ({ page }) => {
   await page.goto('/?mountain=nowhere');
   await expect(page.getByRole('alert')).toContainText('Unknown mountain "nowhere"');
 });
+
+test('shows the minimap and toggles the full map with Tab', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?mountain=test-peak');
+  await expect(page.getByTestId('hud')).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole('img', { name: 'Map' })).toBeVisible();
+  await page.keyboard.press('Tab');
+  const dialog = page.getByRole('dialog', { name: 'Map of Test Peak' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Khare');
+  await expect(dialog).toContainText('High Camp');
+  await page.keyboard.press('Tab');
+  await expect(dialog).toBeHidden();
+  expect(errors).toEqual([]);
+});

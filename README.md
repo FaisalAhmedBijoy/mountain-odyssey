@@ -14,6 +14,7 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 - **Climbing that feels physical.** You can walk, run, jump and slide. You can grab any steep rock face (≥ 50°) and climb it in four directions, then mantle over the top. Movement uses a Rapier character controller.
 - **Stamina and falls.** Running and climbing drain stamina, and if it runs out on a wall, you fall. A drop of 6–15 m injures you. A drop over 15 m sends you back to the last camp.
 - **Route guide.** An orange ribbon on the ground and trail flags mark the walkable route to the next camp, and a HUD arrow shows the distance. The route is computed when the terrain is baked, and it is guaranteed to stay walkable.
+- **Map.** A north-up minimap with your direction arrow, and a full map of the camps and route (Tab).
 - **Biomes.** Green forested hills with trees on Keokradong; snow and rock on Mera Peak.
 - **Survival.** Oxygen, warmth and supplies that interact with stamina; rest at camps to acclimatize.
 - **Checkpoints.** Reaching a camp saves your progress, and after a fatal fall, a collapse from lack of oxygen or hypothermia you respawn there.
@@ -34,6 +35,7 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 | `C`             | Cycle camera distance                                                |
 | `T`             | Show or hide the route line                                          |
 | `H`             | Show or hide the controls panel                                      |
+| `Tab`           | Map (minimap always shown; Tab opens the full map)                   |
 | `Esc`           | Pause (click the game to resume)                                     |
 
 **Tips**
