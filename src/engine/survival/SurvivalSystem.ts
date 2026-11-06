@@ -27,7 +27,8 @@ export interface SurvivalFrame {
   state: MoveState;
   moving: boolean;
   grounded: boolean;
-  atCamp: boolean;
+  /** Id of the camp the player stands at, or null when not at a camp. */
+  campId: string | null;
   windMs: number;
   actions: SurvivalActions;
 }
@@ -42,6 +43,10 @@ export interface SurvivalOutput {
 export class SurvivalSystem {
   private s: SurvivalState;
   private restLeftSec = 0;
+  /** Camp of the rest in progress. */
+  private restCampId: string | null = null;
+  /** Camps that already granted acclimatization; kept through respawn. */
+  private readonly acclimatizedAt = new Set<string>();
   private respawnCount = 0;
 
   constructor(
@@ -76,11 +81,12 @@ export class SurvivalSystem {
     if (this.resting) return this.continueRest(f.altitudeM, dt);
     let toast: string | null = null;
     if (f.actions.rest) {
-      if (f.atCamp && f.grounded && f.state !== 'climb') {
+      if (f.campId !== null && f.grounded && f.state !== 'climb') {
         this.restLeftSec = this.r.restSeconds;
+        this.restCampId = f.campId;
         return { death: null, toast: 'Resting…', restFinished: false };
       }
-      toast = f.atCamp ? 'Stand on the ground to rest' : 'You can only rest at a camp';
+      toast = f.campId !== null ? 'Stand on the ground to rest' : 'You can only rest at a camp';
     }
     if (f.actions.eat) toast = this.eat();
     if (f.actions.oxygen) toast = this.useOxygen();
@@ -89,7 +95,7 @@ export class SurvivalSystem {
       {
         altitudeM: f.altitudeM,
         activity: activityOf(f.state, f.moving),
-        atCamp: f.atCamp,
+        atCamp: f.campId !== null,
         windMs: f.windMs,
       },
       dt,
@@ -102,16 +108,24 @@ export class SurvivalSystem {
   respawn(campAltitudeM: number): void {
     this.s = respawnSurvival(this.s, campAltitudeM, this.r);
     this.restLeftSec = 0;
+    this.restCampId = null;
     this.respawnCount++;
   }
 
   private continueRest(altitudeM: number, dt: number): SurvivalOutput {
     this.restLeftSec = Math.max(0, this.restLeftSec - dt);
     if (this.restLeftSec > 0) return { death: null, toast: null, restFinished: false };
-    this.s = restAtCamp(this.s, altitudeM, this.r);
+    const campId = this.restCampId;
+    this.restCampId = null;
+    const acclimatize = campId !== null && !this.acclimatizedAt.has(campId);
+    if (acclimatize) this.acclimatizedAt.add(campId);
+    this.s = restAtCamp(this.s, altitudeM, this.r, acclimatize);
+    const m = this.s.acclimatizationM;
     return {
       death: null,
-      toast: `Rested — acclimatized to +${this.s.acclimatizationM} m`,
+      toast: acclimatize
+        ? `Rested — acclimatized to +${m} m`
+        : `Rested — already acclimatized here (+${m} m)`,
       restFinished: true,
     };
   }

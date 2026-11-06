@@ -119,11 +119,14 @@ stamina = 0 while walking → walk speed × 0.5
 - After the rest:
   - Stamina is full and the injury is cleared.
   - Body temperature is 100.
-  - Acclimatization rises by 250 m, then oxygen is set to the new ceiling.
+  - Acclimatization rises by 250 m (capped at 1,000 m), but only on the first rest at each camp. Then oxygen is set to the new ceiling.
   - Supplies drop by 10.
-- The toast shows the new acclimatization, for example "Rested — acclimatized to +500 m".
+- The toast shows the acclimatization:
+  - First rest at a camp: "Rested — acclimatized to +500 m".
+  - Later rests at the same camp: "Rested — already acclimatized here (+500 m)".
+- `SurvivalSystem` remembers which camp ids already granted acclimatization, including across respawns. Later rests there still warm, refill oxygen to the ceiling, restore stamina and cost 10 supplies.
 
-The −10 supplies cost stops free acclimatization farming, because there is no clock until M2c.
+Acclimatization once per camp stops farming it by resting repeatedly. The −10 supplies cost alone did not: four rests at Khare in about 12 s gave the full +1,000 m.
 
 ### 4.6 Death and respawn
 

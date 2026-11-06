@@ -10,7 +10,7 @@ const frame = (over: Partial<SurvivalFrame> = {}): SurvivalFrame => ({
   state: 'walk',
   moving: false,
   grounded: true,
-  atCamp: false,
+  campId: null,
   windMs: 0,
   actions: NONE,
   ...over,
@@ -75,14 +75,14 @@ describe('SurvivalSystem', () => {
     const at = { altitudeM: 5800 };
     expect(sys.step(press('rest', at), DT).toast).toBe('You can only rest at a camp');
     expect(
-      sys.step(press('rest', { ...at, atCamp: true, state: 'climb', grounded: false }), DT).toast,
+      sys.step(press('rest', { ...at, campId: 'high', state: 'climb', grounded: false }), DT).toast,
     ).toBe('Stand on the ground to rest');
     expect(sys.resting).toBe(false);
   });
 
   it('a 3 s rest pauses survival, then restores and acclimatizes', () => {
     const sys = new SurvivalSystem(r, 5800);
-    const at = { altitudeM: 5800, atCamp: true };
+    const at = { altitudeM: 5800, campId: 'high' };
     expect(sys.step(press('rest', at), DT).toast).toBe('Resting…');
     expect(sys.resting).toBe(true);
     let finishedAt = -1;
@@ -101,6 +101,27 @@ describe('SurvivalSystem', () => {
     expect(sys.state.oxygen).toBe(36.25);
     expect(sys.state.supplies).toBeCloseTo(90, 1);
     expect(sys.resting).toBe(false);
+  });
+
+  it('acclimatizes only on the first rest at each camp', () => {
+    const sys = new SurvivalSystem(r, 5800);
+    const restAt = (campId: string): string | null => {
+      const at = { altitudeM: 5800, campId };
+      sys.step(press('rest', at), DT);
+      for (let i = 0; i < 400; i++) {
+        const out = sys.step(frame(at), DT);
+        if (out.restFinished) return out.toast;
+      }
+      return null;
+    };
+    expect(restAt('high')).toBe('Rested — acclimatized to +250 m');
+    expect(restAt('high')).toBe('Rested — already acclimatized here (+250 m)');
+    expect(sys.state.acclimatizationM).toBe(250);
+    expect(restAt('khare')).toBe('Rested — acclimatized to +500 m');
+    expect(sys.state.acclimatizationM).toBe(500);
+    sys.respawn(5800);
+    expect(restAt('khare')).toBe('Rested — already acclimatized here (+500 m)');
+    expect(sys.state.acclimatizationM).toBe(500);
   });
 
   it('reports a collapse after about 15 s of climbing at High Camp', () => {

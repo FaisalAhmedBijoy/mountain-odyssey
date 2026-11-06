@@ -315,7 +315,7 @@ export class Game {
         state: s.state,
         moving: s.moving,
         grounded: s.grounded,
-        atCamp: campAt(s.feet, w.manifest.camps, cfg.checkpoints) !== null,
+        campId: campAt(s.feet, w.manifest.camps, cfg.checkpoints)?.id ?? null,
         windMs: 0, // calm until the weather system (M2c)
         actions,
       },

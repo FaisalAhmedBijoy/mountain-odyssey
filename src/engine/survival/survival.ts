@@ -109,14 +109,21 @@ export function startBottle(
   };
 }
 
-/** Effects of a completed rest at a camp (M2a spec §4.5). Stamina is restored by Player. */
-export function restAtCamp(s: SurvivalState, altitudeM: number, r: SurvivalRules): SurvivalState {
+/**
+ * Effects of a completed rest at a camp (M2a spec §4.5). Stamina is restored by Player.
+ * `acclimatize` is false when this camp already granted its acclimatization.
+ */
+export function restAtCamp(
+  s: SurvivalState,
+  altitudeM: number,
+  r: SurvivalRules,
+  acclimatize: boolean,
+): SurvivalState {
   const rested: SurvivalState = {
     ...s,
-    acclimatizationM: Math.min(
-      r.acclimatization.maxM,
-      s.acclimatizationM + r.acclimatization.perRestM,
-    ),
+    acclimatizationM: acclimatize
+      ? Math.min(r.acclimatization.maxM, s.acclimatizationM + r.acclimatization.perRestM)
+      : s.acclimatizationM,
     bodyTemp: r.max,
     supplies: Math.max(0, s.supplies - r.supplies.restCost),
   };

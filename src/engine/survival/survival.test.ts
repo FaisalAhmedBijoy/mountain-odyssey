@@ -113,13 +113,29 @@ describe('startBottle', () => {
 
 describe('restAtCamp', () => {
   it('acclimatizes by 250 m (max 1000), warms fully, sets oxygen to the new ceiling and costs 10 supplies', () => {
-    const s = restAtCamp(state({ bodyTemp: 40, oxygen: 10, supplies: 50 }), 5800, r);
+    const s = restAtCamp(state({ bodyTemp: 40, oxygen: 10, supplies: 50 }), 5800, r, true);
     expect(s.acclimatizationM).toBe(250);
     expect(s.bodyTemp).toBe(100);
     expect(s.oxygen).toBe(36.25);
     expect(s.supplies).toBe(40);
-    expect(restAtCamp(state({ acclimatizationM: 1000 }), 5800, r).acclimatizationM).toBe(1000);
-    expect(restAtCamp(state({ supplies: 4 }), 5800, r).supplies).toBe(0);
+    expect(restAtCamp(state({ acclimatizationM: 1000 }), 5800, r, true).acclimatizationM).toBe(
+      1000,
+    );
+    expect(restAtCamp(state({ supplies: 4 }), 5800, r, true).supplies).toBe(0);
+  });
+
+  it('without acclimatization keeps acclimatizationM but still warms, refills oxygen and costs supplies', () => {
+    const s = restAtCamp(
+      state({ bodyTemp: 40, oxygen: 10, supplies: 50, acclimatizationM: 250 }),
+      5800,
+      r,
+      false,
+    );
+    // Ceiling at 5,800 m with +250 m: 100 - (5800 - 250 - 3000) / 40 = 36.25.
+    expect(s.acclimatizationM).toBe(250);
+    expect(s.bodyTemp).toBe(100);
+    expect(s.oxygen).toBe(36.25);
+    expect(s.supplies).toBe(40);
   });
 });
 
