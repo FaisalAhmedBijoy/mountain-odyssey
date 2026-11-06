@@ -187,3 +187,7 @@ Acclimatization once per camp stops farming it by resting repeatedly. The −10 
 2. **No `player:rested` event.** Nothing listens to it until save arrives in M2e (YAGNI).
 3. **Out-of-world uses the `fall` respawn cause.** The toast is the same, so there is no separate `outOfWorld` cause.
 4. **`Player` does not expose `exerting`.** `activityOf(state, moving)` in `bodyTemp.ts` derives `idle | walk | exert` from the existing snapshot, and exertion means `activity === 'exert'`.
+5. **The HUD item row is plain text**, "Food 4 · Water 4 · O₂ 2", instead of 🍖 / 💧 icons. It is easier to read and to test.
+6. **The O₂ timer is a separate line.** While a bottle is active, "O₂ flowing m:ss" shows under the item row instead of replacing its text.
+7. **Exertion drains oxygen at 2/s, not 1/s**, so a collapse is reachable above about 5,400 m within the stamina budget (final review, user-approved).
+8. **Acclimatization is granted once per camp** (final review, user-approved). See §4.5.

@@ -41,8 +41,10 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 ## Survival (M2a)
 
 - [ ] Oxygen, Warmth and Supplies bars and the item row (Food 4 · Water 4 · O₂ 2) show at Khare.
-- [ ] Sprinting and climbing near High Camp drains oxygen; a warning appears below 25; stopping recovers it; draining it to 0 respawns with "You collapsed from lack of oxygen".
+- [ ] Sprinting and climbing near High Camp drains oxygen; a warning appears below 25; stopping recovers it. About 15 s of continuous climbing at or near an unacclimatized High Camp drains oxygen to 0 before stamina runs out and respawns with "You collapsed from lack of oxygen". At Khare, stamina runs out first.
 - [ ] `F` eats food then water, only when supplies are below full.
 - [ ] `O` starts a 10-minute bottle; the timer shows; oxygen rises.
 - [ ] At a camp, "R — Rest" shows; resting fades the screen ~3 s, refills stamina and warmth and shows the acclimatization toast; away from camp `R` explains why it cannot rest.
-- [ ] Standing still for a long time high up drains warmth; below 30 climbing is visibly slower.
+- [ ] Acclimatization: the first rest at a camp gives +250 m ("Rested — acclimatized to +250 m"); a second rest there says "already acclimatized here" and does not raise it.
+- [ ] Standing still for a long time high up drains warmth; below 30 climbing is visibly slower. Idling near High Camp (outside the camp), warmth falls about 2.7 per minute: about 26 min to reach 30 (slow climbing) and about 37 min to hypothermia.
+- [ ] Stamina recovery at Khare is about half of M1's, because oxygen at Khare is 50. Note whether it feels too slow.

@@ -6,7 +6,7 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 
 ![Mera Peak: the climber at Khare camp with the route guide, stamina HUD and controls panel](docs/images/mera-peak.png)
 
-> **Status: playable vertical slice (M1).** You can walk, run, slide and climb on Mera Peak (Nepal) from Khare (≈ 5,000 m) to High Camp (≈ 5,800 m). Weather, oxygen, equipment and the full summit route come in M2 (see [Roadmap](#roadmap)).
+> **Status: playable vertical slice (M1) plus survival (M2a).** You can walk, run, slide and climb on Mera Peak (Nepal) from Khare (≈ 5,000 m) to High Camp (≈ 5,800 m), managing oxygen, warmth and supplies on the way. Weather, equipment and the full summit route come later in M2 (see [Roadmap](#roadmap)).
 
 ## Features
 
@@ -15,7 +15,7 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 - **Stamina and falls.** Running and climbing drain stamina, and if it runs out on a wall, you fall. A drop of 6–15 m injures you. A drop over 15 m sends you back to the last camp.
 - **Route guide.** An orange ribbon on the ground and trail flags mark the walkable route to the next camp, and a HUD arrow shows the distance. The route is computed when the terrain is baked, and it is guaranteed to stay walkable.
 - **Survival.** Oxygen, warmth and supplies that interact with stamina; rest at camps to acclimatize.
-- **Checkpoints.** Reaching a camp saves your progress, and after a fatal fall you respawn there.
+- **Checkpoints.** Reaching a camp saves your progress, and after a fatal fall, a collapse from lack of oxygen or hypothermia you respawn there.
 - **Runs in the browser.** It needs a desktop browser with WebGL2 and nothing to install.
 
 ## Controls
@@ -40,6 +40,9 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 - Walk to recover stamina before a long climb. One full bar is enough for about 10 m of climbing.
 - Ground steeper than 33° makes you slide.
 - If you leave the route, follow the HUD arrow back to it.
+- Press `F` to eat or drink when supplies run low. Food gives more than water, so it is used first.
+- Thin air limits your oxygen. Running or climbing for long high up makes you collapse, so stop to breathe, or press `O` for a 10-minute bottle.
+- Press `R` at a camp to rest. It warms you and refills stamina, and the first rest at each camp acclimatizes you by 250 m.
 
 ## Mountains
 
