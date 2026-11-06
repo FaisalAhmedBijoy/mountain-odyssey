@@ -2,6 +2,7 @@ import type { EventBus } from '../core/EventBus';
 import type { GameEvents } from '../core/events';
 import type { Vec3 } from '../core/math';
 import type { CampDef } from '../world/terrainData';
+import { isNearCamp } from './camps';
 
 /** Detects arrival at camps; the latest one is the respawn point (spec §5.5). */
 export class CheckpointSystem {
@@ -25,9 +26,8 @@ export class CheckpointSystem {
   update(feet: Vec3): void {
     this.camps.forEach((camp, index) => {
       if (this.reached.has(camp.id)) return;
-      const [x, y, z] = camp.position;
-      const near = Math.hypot(feet.x - x, feet.z - z) <= this.radiusM;
-      if (!near || Math.abs(feet.y - y) > this.maxHeightDiffM) return;
+      const zone = { radiusM: this.radiusM, maxHeightDiffM: this.maxHeightDiffM };
+      if (!isNearCamp(feet, camp, zone)) return;
       this.reached.add(camp.id);
       this.lastIndex = index;
       this.events.emit('checkpoint:reached', { id: camp.id, name: camp.name });
