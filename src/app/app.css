@@ -382,11 +382,11 @@ body,
   background: rgba(255, 255, 255, 0.1);
 }
 
-.card:focus-visible,
 .menu__back:hover {
   border-color: #f2b84b;
 }
 
+.card:focus-visible,
 .menu__back:focus-visible,
 .overlay__action:focus-visible {
   outline: 2px solid #f2b84b;
