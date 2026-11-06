@@ -125,14 +125,14 @@ The player is in exactly one state at a time.
 
 | State | Entry condition | Speed | Stamina |
 |---|---|---|---|
-| Walk | Surface slope < 33° (see note) | 2.0 m/s | Recovers |
-| Run (`Shift`) | Slope < 20° and stamina > 10 | 5.0 m/s | −8 /s |
+| Walk | Surface slope < 33° (see note) | 3.0 m/s | Recovers |
+| Run (`Shift`) | Slope < 20° and stamina > 10 | 6.0 m/s | −8 /s |
 | Slide | Slope 33–50° with no grip, or ice without crampons | Uncontrolled | No cost; hazard |
 | Climb (`E` at wall) | Slope > 50° and surface climbable with current gear | 0.5 m/s | −5 /s while moving, −1.5 /s while holding |
 | Rope (`E` at fixed rope) | Within 1 m of a fixed rope; harness + ascender equipped | 0.8 m/s | −3 /s while moving |
 | Fall | Stamina reaches 0 while climbing, or ungrounded drop | Gravity | — |
 
-**Deviation (speed tuning, 2026-11-06):** walk speed raised from 1.4 to 2.0 m/s and run speed from 3.5 to 5.0 m/s at the developer's request, so moving across the large terrain feels less slow.
+**Deviation (speed tuning, 2026-11-06):** walk speed raised from 1.4 to 3.0 m/s and run speed from 3.5 to 6.0 m/s at the developer's request, so moving across the large terrain feels less slow.
 
 **Deviation (route guide, 2026-11-04):** the walk/slide threshold (`GAME_CONFIG.movement.maxWalkSlopeDeg`, which also sets Rapier's max climb angle) is 33°, not the original 30°. Routes derived from the 30 m DEM, judged at the engine's 2 m resolution, need it: on Mera no camp-to-camp route stays below 30° at 2 m, while one below 33° exists. The run limit stays 20°, and camp spawns stay ≤ 30° (see §6.9).
 

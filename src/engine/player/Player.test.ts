@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { GAME_CONFIG } from '../config/game.config';
 import { EventBus } from '../core/EventBus';
 import type { GameEvents } from '../core/events';
 import type { Vec3 } from '../core/math';
@@ -72,8 +73,9 @@ describe('Player', () => {
     const s = player.snapshot;
     expect(s.state).toBe('walk');
     expect(s.grounded).toBe(true);
-    expect(s.feet.z).toBeLessThan(-1.7);
-    expect(s.feet.z).toBeGreaterThan(-2.2);
+    // One second of walking covers about walkSpeed metres.
+    expect(-s.feet.z).toBeGreaterThan(GAME_CONFIG.movement.walkSpeed * 0.85);
+    expect(-s.feet.z).toBeLessThan(GAME_CONFIG.movement.walkSpeed * 1.05);
     expect(s.feet.y).toBeCloseTo(100, 1);
   });
 
@@ -173,7 +175,10 @@ describe('Player', () => {
     run({ forward: -1 }, 60);
     expect(player.snapshot.state).toBe('climb');
     expect(player.snapshot.feet.y).toBeLessThan(high - 0.3);
-    run({ forward: -1 }, 1200);
+    // Climb down until the feet reach the flat ground, then take a few steps away.
+    // A fixed step count would walk off the 64 m test tile at higher walk speeds.
+    for (let i = 0; i < 1200 && player.snapshot.state === 'climb'; i++) run({ forward: -1 }, 1);
+    run({ forward: -1 }, 30);
     expect(player.snapshot.state).toBe('walk');
     expect(player.snapshot.feet.y).toBeCloseTo(100, 0);
   });
