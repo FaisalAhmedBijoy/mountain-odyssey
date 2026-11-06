@@ -54,7 +54,7 @@ export const GAME_CONFIG = {
       ceilingRefAltitudeM: 3000,
       ceilingMetresPerPoint: 40,
       minCeiling: 20,
-      exertionDrainPerSec: 1,
+      exertionDrainPerSec: 2,
       recoverPerSec: 1,
       dropToCeilingPerSec: 2,
       bottleAltitudeBonusM: 2000,

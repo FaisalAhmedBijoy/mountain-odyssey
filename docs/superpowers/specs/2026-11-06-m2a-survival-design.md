@@ -65,13 +65,13 @@ All stats range 0–100 and start at 100. Every number lives in `GAME_CONFIG.sur
 ```
 effectiveAltitude = altitude − acclimatizationM − (bottledActive ? 2000 : 0)
 ceiling           = clamp(100 − max(0, effectiveAltitude − 3000) / 40, 20, 100)
-exerting          → oxygen −= 1/s (no recovery while exerting)
+exerting          → oxygen −= 2/s (no recovery while exerting)
 not exerting      → oxygen moves toward ceiling: up at +1/s, down at −2/s if above it
 oxygen = 0        → death 'collapse'
 warnings at < 25 ("Low oxygen — stop and breathe") and < 10 ("Oxygen critical")
 ```
 
-**Deviation from §5.2:** §5.2 recovered toward the ceiling at 2/s even while exerting and drained only 1/s for exertion, so oxygen could never reach 0. Exertion now pauses recovery. Example: unacclimatized at High Camp (5,800 m, ceiling 30), about 30 s of continuous exertion causes a collapse. Stopping recovers it.
+**Deviation from §5.2:** §5.2 recovered toward the ceiling at 2/s even while exerting and drained only 1/s for exertion, so oxygen could never reach 0. Exertion now pauses recovery and drains 2/s. Example: about 15 s of continuous climbing causes a collapse at an unacclimatized High Camp (5,800 m, ceiling 30); at Khare (ceiling 50) stamina runs out first. Stopping recovers it.
 
 **Bottled O₂:**
 - `O` starts one bottle when none is active and `o2 > 0`. It lasts 600 s of real time.

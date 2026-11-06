@@ -103,13 +103,17 @@ describe('SurvivalSystem', () => {
     expect(sys.resting).toBe(false);
   });
 
-  it('reports a collapse when climbing drains oxygen at High Camp', () => {
+  it('reports a collapse after about 15 s of climbing at High Camp', () => {
     const sys = new SurvivalSystem(r, 5800);
     let death = null;
-    for (let i = 0; i < 40 * 60 && !death; i++) {
+    let steps = 0;
+    for (; steps < 20 * 60 && !death; steps++) {
       death = sys.step(frame({ altitudeM: 5800, state: 'climb', moving: true }), DT).death;
     }
     expect(death).toBe('collapse');
+    // Ceiling 30 at 2/s: 15 s = 900 steps (one extra allowed for float rounding).
+    expect(steps).toBeGreaterThanOrEqual(900);
+    expect(steps).toBeLessThanOrEqual(901);
   });
 
   it('reports hypothermia when standing still near the summit for long enough', () => {

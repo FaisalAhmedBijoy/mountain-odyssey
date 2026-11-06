@@ -21,9 +21,9 @@ describe('oxygenCeiling', () => {
 });
 
 describe('updateOxygen', () => {
-  it('drains 1/s while exerting, even below the ceiling, never below 0', () => {
-    expect(updateOxygen(30, 30, true, 1, r)).toBe(29);
-    expect(updateOxygen(10, 50, true, 2, r)).toBe(8);
+  it('drains 2/s while exerting, even below the ceiling, never below 0', () => {
+    expect(updateOxygen(30, 30, true, 1, r)).toBe(28);
+    expect(updateOxygen(10, 50, true, 2, r)).toBe(6);
     expect(updateOxygen(0.5, 30, true, 1, r)).toBe(0);
   });
 
@@ -37,10 +37,13 @@ describe('updateOxygen', () => {
     expect(updateOxygen(51, 50, false, 1, r)).toBe(50);
   });
 
-  it('runs out after about 30 s of exertion at an unacclimatized High Camp', () => {
+  it('runs out after about 15 s of exertion at an unacclimatized High Camp', () => {
     const ceiling = oxygenCeiling(5800, 0, false, r);
     let o = ceiling;
-    for (let i = 0; i < 30 * 60; i++) o = updateOxygen(o, ceiling, true, 1 / 60, r);
+    for (let i = 0; i < 14 * 60; i++) o = updateOxygen(o, ceiling, true, 1 / 60, r);
+    // 30 - 14 s * 2/s = 2 left after 14 s.
+    expect(o).toBeCloseTo(2, 6);
+    for (let i = 0; i < 1 * 60; i++) o = updateOxygen(o, ceiling, true, 1 / 60, r);
     expect(o).toBeLessThan(1e-9);
   });
 });
