@@ -6,7 +6,7 @@ import type { MoveInput } from '../player/movementState';
 import { Player } from '../player/Player';
 import { PlayerVisual } from '../player/PlayerVisual';
 import { SurvivalSystem, type SurvivalActions } from '../survival/SurvivalSystem';
-import { WARNING_TEXT } from '../survival/survival';
+import { lowStats, WARNING_TEXT } from '../survival/survival';
 import { CheckpointSystem } from '../systems/CheckpointSystem';
 import { campAt } from '../systems/camps';
 import { RouteGuide, type GuideHud } from '../systems/RouteGuide';
@@ -277,8 +277,11 @@ export class Game {
       rest: this.input.consumePressed('rest'),
     };
     if (w.survival.resting) {
-      // The player stands still during the rest fade; drop any keys pressed meanwhile.
-      this.input.reset();
+      // The player stands still during the rest fade: drop gameplay presses made meanwhile.
+      // Held keys and mouse look are kept, so the camera, H and held Shift/W still work.
+      for (const a of ['grab', 'jump', 'cameraDistance', 'toggleRoute'] as const) {
+        this.input.consumePressed(a);
+      }
       this.stepSurvival(w, actions, dt);
       return;
     }
@@ -299,7 +302,8 @@ export class Game {
     const feet = w.player.snapshot.feet;
     // Beyond the outer tiles there is no collider: treat it like a fatal fall.
     if (isOutOfWorld(feet, w.manifest, cfg.terrain.outOfWorldDropM)) this.pendingRespawn ??= 'fall';
-    else w.checkpoints.update(feet);
+    // A death detected this step must not move the respawn point to a camp reached in it.
+    else if (!this.pendingRespawn) w.checkpoints.update(feet);
     if (this.pendingRespawn) {
       const cause = this.pendingRespawn;
       this.pendingRespawn = null;
@@ -374,6 +378,8 @@ export class Game {
     try {
       const spawn = this.spawnPoint(w.sampler, camp);
       w.player.teleport(spawn);
+      // Drop presses queued while chunks loaded, so they do not fire on the first step.
+      this.input.reset();
       w.survival.respawn(spawn.y);
       w.player.setSurvivalModifiers(w.survival.modifiers);
       w.cameraCtrl.snap();
@@ -417,9 +423,11 @@ export class Game {
       staminaCap: Math.round(s.stamina.cap),
       moveState: s.state,
       prompt: s.prompt ?? (canRest ? 'R — Rest' : null),
-      oxygen: Math.round(sv.oxygen),
-      bodyTemp: Math.round(sv.bodyTemp),
-      supplies: Math.round(sv.supplies),
+      // Round up so a stat that is still above 0 never shows as 0.
+      oxygen: Math.ceil(sv.oxygen),
+      bodyTemp: Math.ceil(sv.bodyTemp),
+      supplies: Math.ceil(sv.supplies),
+      lowStats: lowStats(sv, cfg.survival),
       items: { ...sv.inventory },
       o2SecondsLeft: sv.o2SecondsLeft > 0 ? Math.ceil(sv.o2SecondsLeft) : null,
       warning: warning ? WARNING_TEXT[warning] : null,
