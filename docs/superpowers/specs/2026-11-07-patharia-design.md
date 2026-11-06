@@ -84,7 +84,8 @@ DEM probe (2026-11-07): the ridge runs north–south along ≈ 92.22–92.26° E
   - `s` is a smooth periodic 0–1 profile, for example `0.5 − 0.5·cos(2π·frac)`.
   - This draws contour-following rows that are visible from a distance.
   - The defaults are `riseM: 0.8` and `contrast: 0.18`, to be tuned in playtest.
-  - It is applied in `terrainColor`, so the 3-D terrain and the map both show it.
+  - It is applied in `terrainColor`, so the 3-D terrain shows it.
+  - Deviation: the relief map draws the palette without stripes, because its 64 m samples would alias the 0.8 m-rise stripes into noise.
 
 **Sky:** a bright pale morning haze, for example colour `0xd9e6dc`, fog near 400, fog far 4500.
 

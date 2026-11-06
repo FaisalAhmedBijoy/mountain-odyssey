@@ -55,7 +55,7 @@ interface World {
   physics: PhysicsWorld;
   sampler: TerrainSampler;
   chunks: ChunkManager;
-  trees: TreeSystem | null;
+  trees: TreeSystem[];
   player: Player;
   visual: PlayerVisual;
   cameraCtrl: ThirdPersonCamera;
@@ -179,9 +179,13 @@ export class Game {
       material.dispose();
     });
 
-    const treeRules = cfg.biomes[o.biome].trees;
-    const trees = treeRules ? new TreeSystem(this.scene, manifest, sampler, treeRules) : null;
-    if (trees) this.cleanup.push(() => trees.dispose());
+    const trees: TreeSystem[] = [];
+    for (const layer of cfg.biomes[o.biome].vegetation) {
+      if (layer.kind !== 'trees') continue; // Task 4: tea layers
+      const system = new TreeSystem(this.scene, manifest, sampler, layer);
+      trees.push(system);
+      this.cleanup.push(() => system.dispose());
+    }
 
     await chunks.loadBackdrop();
     const start = manifest.camps[0];
@@ -405,7 +409,7 @@ export class Game {
     this.guideHud = w.guide.update(feet, w.cameraCtrl.yaw);
     this.environment.follow(feet);
     if (!this.respawning) w.chunks.update(feet.x, feet.z).catch((err: unknown) => this.fail(err));
-    if (!this.respawning) w.trees?.update(feet.x, feet.z);
+    if (!this.respawning) for (const t of w.trees) t.update(feet.x, feet.z);
     this.renderer.render(this.scene, this.camera);
     this.publishHud(frameDt);
   }

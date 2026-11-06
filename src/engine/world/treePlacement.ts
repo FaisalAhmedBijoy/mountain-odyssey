@@ -6,6 +6,10 @@ export interface TreeRules {
   /** Probability (0–1) that a grid cell holds a tree. */
   density: number;
   maxSlopeDeg: number;
+  /** Skip slopes gentler than this (default 0). */
+  minSlopeDeg?: number;
+  /** Only these variant indices (default: all `variants`). */
+  variants?: readonly number[];
   routeClearanceM: number;
   campClearanceM: number;
   minScale: number;
@@ -87,7 +91,13 @@ export function placeTrees(
       if (x < area.minX || x >= area.maxX || z < area.minZ || z >= area.maxZ) continue;
       const slope = ground.slopeDegAt(x, z);
       const y = ground.heightAt(x, z);
-      if (slope === null || y === null || slope > rules.maxSlopeDeg) continue;
+      if (
+        slope === null ||
+        y === null ||
+        slope > rules.maxSlopeDeg ||
+        slope < (rules.minSlopeDeg ?? 0)
+      )
+        continue;
       if (camps.some((c) => (c[0] - x) ** 2 + (c[2] - z) ** 2 < campSq)) continue;
       if (segments.some(([a, b]) => segmentDistSq(x, z, a, b) < routeSq)) continue;
       trees.push({
@@ -96,7 +106,9 @@ export function placeTrees(
         z,
         scale: rules.minScale + (rules.maxScale - rules.minScale) * hash(i, j, rules.seed + 3),
         rotation: hash(i, j, rules.seed + 4) * Math.PI * 2,
-        variant: Math.floor(hash(i, j, rules.seed + 5) * variants),
+        variant: rules.variants
+          ? rules.variants[Math.floor(hash(i, j, rules.seed + 5) * rules.variants.length)]
+          : Math.floor(hash(i, j, rules.seed + 5) * variants),
       });
     }
   }

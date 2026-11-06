@@ -70,4 +70,14 @@ describe('placeTrees', () => {
     }
     expect(trees.length).toBeLessThan(placeTrees(area, flat, rules, none, 3).length);
   });
+
+  it('skips slopes below minSlopeDeg', () => {
+    expect(placeTrees(area, flat, { ...rules, minSlopeDeg: 10 }, none, 3)).toEqual([]);
+  });
+
+  it('draws variants only from the subset', () => {
+    const trees = placeTrees(area, flat, { ...rules, variants: [1] }, none, 3);
+    expect(trees.length).toBeGreaterThan(0);
+    expect(new Set(trees.map((t) => t.variant))).toEqual(new Set([1]));
+  });
 });

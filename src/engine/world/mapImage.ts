@@ -1,4 +1,4 @@
-import { linearPalette, terrainColor, type TerrainPalette } from './palette';
+import { linearPalette, terrainColor, withoutStripes, type TerrainPalette } from './palette';
 import type { SurfaceRules } from './surface';
 import type { Backdrop } from './terrainData';
 
@@ -30,7 +30,7 @@ export function buildMapImage(
 ): MapImage {
   const n = b.samples;
   const s = b.spacingM;
-  const pal = linearPalette(palette);
+  const pal = linearPalette(withoutStripes(palette));
   const pixels = new Uint8ClampedArray(n * n * 4);
   const h = (c: number, r: number): number =>
     b.heights[Math.min(Math.max(r, 0), n - 1) * n + Math.min(Math.max(c, 0), n - 1)];
