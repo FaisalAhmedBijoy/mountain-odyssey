@@ -218,4 +218,49 @@ describe('Player', () => {
     expect(player.snapshot.feet.y).toBeLessThan(110);
     expect(fell.filter((e) => e.outcome === 'injury' || e.outcome === 'fatal')).toEqual([]);
   });
+
+  it('scales stamina recovery and caps stamina by the survival modifiers', async () => {
+    const { player, run } = await setup({ x: 0, y: 100.05, z: 0 });
+    run({}, 10);
+    run({ forward: 1, run: true }, 60);
+    const before = player.snapshot.stamina.value;
+    player.setSurvivalModifiers({
+      staminaRecoveryMul: 0.5,
+      staminaCapLimit: 100,
+      climbSpeedMul: 1,
+    });
+    run({}, 60);
+    expect(player.snapshot.stamina.value).toBeCloseTo(before + 3, 1);
+    player.setSurvivalModifiers({ staminaRecoveryMul: 1, staminaCapLimit: 50, climbSpeedMul: 1 });
+    run({}, 1);
+    expect(player.snapshot.stamina).toEqual({ value: 50, cap: 50 });
+  });
+
+  it('climbs slower when the survival modifiers say it is cold', async () => {
+    async function climbedMetres(climbSpeedMul: number): Promise<number> {
+      const { player, run } = await setup({ x: 0, y: 100.05, z: -9 });
+      player.setSurvivalModifiers({ staminaRecoveryMul: 1, staminaCapLimit: 100, climbSpeedMul });
+      run({}, 10);
+      run({ grab: true }, 1);
+      const y0 = player.snapshot.feet.y;
+      run({ forward: 1 }, 120);
+      expect(player.snapshot.state).toBe('climb');
+      const dy = player.snapshot.feet.y - y0;
+      physics?.dispose();
+      physics = null;
+      return dy;
+    }
+    const warm = await climbedMetres(1);
+    const cold = await climbedMetres(0.7);
+    expect(cold / warm).toBeCloseTo(0.7, 1);
+  });
+
+  it('restoreStamina refills stamina and clears an injury', async () => {
+    const { player, run } = await setup({ x: 0, y: 108.05, z: -14 });
+    run({}, 10);
+    run({ forward: -1 }, 240);
+    expect(player.snapshot.stamina.cap).toBe(70);
+    player.restoreStamina();
+    expect(player.snapshot.stamina).toEqual({ value: 100, cap: 100 });
+  });
 });

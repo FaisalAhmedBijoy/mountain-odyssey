@@ -30,14 +30,25 @@ export function staminaRate(state: MoveState, moving: boolean, r: StaminaRules):
   }
 }
 
+/** Survival effects on stamina (M2a spec §4.4). */
+export interface StaminaModifiers {
+  recoveryMul: number;
+  capLimit: number;
+}
+
+const NO_MODIFIERS: StaminaModifiers = { recoveryMul: 1, capLimit: Infinity };
+
 export function updateStamina(
   s: StaminaState,
   state: MoveState,
   moving: boolean,
   dt: number,
   r: StaminaRules,
+  mods: StaminaModifiers = NO_MODIFIERS,
 ): StaminaState {
-  return { value: clamp(s.value + staminaRate(state, moving, r) * dt, 0, s.cap), cap: s.cap };
+  const rate = staminaRate(state, moving, r);
+  const scaled = rate > 0 ? rate * mods.recoveryMul : rate;
+  return { value: clamp(s.value + scaled * dt, 0, Math.min(s.cap, mods.capLimit)), cap: s.cap };
 }
 
 export function applyInjury(s: StaminaState, penalty: number, r: StaminaRules): StaminaState {

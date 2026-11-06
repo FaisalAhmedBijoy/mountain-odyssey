@@ -16,6 +16,7 @@ import {
   type Vec3,
 } from '../core/math';
 import type { PhysicsWorld } from '../physics/PhysicsWorld';
+import type { SurvivalModifiers } from '../survival/survival';
 import { climbRequirement, surfaceAt, type Gear } from '../world/surface';
 import type { TerrainSampler } from '../world/TerrainSampler';
 import { classifyFall } from './fallDamage';
@@ -30,6 +31,12 @@ import { applyInjury, fullStamina, updateStamina, type StaminaState } from './st
 
 const UP: Vec3 = { x: 0, y: 1, z: 0 };
 const UNCONTROLLED: ReadonlySet<MoveState> = new Set<MoveState>(['fall', 'slide']);
+
+const NEUTRAL_SURVIVAL: SurvivalModifiers = {
+  staminaRecoveryMul: 1,
+  staminaCapLimit: cfg.stamina.max,
+  climbSpeedMul: 1,
+};
 
 interface WallSense extends WallInfo {
   normal: Vec3;
@@ -57,6 +64,7 @@ export class Player {
   private velocity: Vec3 = vec3();
   private grounded = false;
   private stamina: StaminaState = fullStamina(cfg.stamina);
+  private survival: SurvivalModifiers = NEUTRAL_SURVIVAL;
   private facing: Vec3 = vec3(0, 0, -1);
   private wallNormal: Vec3 | null = null;
   private fallPeakY = 0;
@@ -95,7 +103,10 @@ export class Player {
       feet: this.feetOf(this.currCenter),
       state: this.state,
       moving: this.moving,
-      stamina: this.stamina,
+      stamina: {
+        value: this.stamina.value,
+        cap: Math.min(this.stamina.cap, this.survival.staminaCapLimit),
+      },
       facingYaw: Math.atan2(this.facing.x, this.facing.z),
       prompt: this.prompt,
       grounded: this.grounded,
@@ -183,7 +194,10 @@ export class Player {
       });
     }
 
-    this.stamina = updateStamina(this.stamina, next, this.moving, dt, cfg.stamina);
+    this.stamina = updateStamina(this.stamina, next, this.moving, dt, cfg.stamina, {
+      recoveryMul: this.survival.staminaRecoveryMul,
+      capLimit: this.survival.staminaCapLimit,
+    });
     this.prompt = this.computePrompt(next, wall);
   }
 
@@ -206,6 +220,16 @@ export class Player {
     this.wallNormal = null;
     this.fallArmed = false;
     this.setClimbMode(false);
+    this.stamina = fullStamina(cfg.stamina);
+  }
+
+  /** Survival effects, refreshed by Game every step. */
+  setSurvivalModifiers(m: SurvivalModifiers): void {
+    this.survival = m;
+  }
+
+  /** Full stamina with the injury cleared (camp rest). */
+  restoreStamina(): void {
     this.stamina = fullStamina(cfg.stamina);
   }
 
@@ -344,7 +368,8 @@ export class Player {
     const right = normalize(cross(face, UP));
     const up = normalize(cross(n, right));
     let t = add(scale(right, input.right), scale(up, input.forward));
-    if (length(t) > 0) t = scale(normalize(t), cfg.movement.climbSpeed * dt);
+    if (length(t) > 0)
+      t = scale(normalize(t), cfg.movement.climbSpeed * this.survival.climbSpeedMul * dt);
     // On leaning faces the capsule's lower (or, on overhangs, upper) cap touches
     // before its centre does, so the hold distance grows with the lean.
     const hold =

@@ -28,4 +28,15 @@ describe('stamina', () => {
     expect(updateStamina(injured, 'walk', false, 10, r).value).toBe(70);
     expect(applyInjury({ value: 15, cap: 20 }, 30, r)).toEqual({ value: 10, cap: 10 });
   });
+
+  it('scales recovery, but not drain, and clamps to the cap limit', () => {
+    const half = { recoveryMul: 0.5, capLimit: 100 };
+    expect(updateStamina({ value: 50, cap: 100 }, 'walk', false, 1, r, half).value).toBe(53);
+    expect(updateStamina(fullStamina(r), 'run', true, 1, r, half).value).toBe(92);
+    const capped = updateStamina({ value: 80, cap: 100 }, 'walk', false, 1, r, {
+      recoveryMul: 1,
+      capLimit: 50,
+    });
+    expect(capped).toEqual({ value: 50, cap: 100 });
+  });
 });
