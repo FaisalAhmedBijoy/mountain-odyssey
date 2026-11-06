@@ -27,8 +27,8 @@ describe('catalog', () => {
     }
   });
 
-  it('makes Mera Peak playable and everything else coming soon', () => {
-    expect(PEAKS.filter(isPlayable).map((p) => p.id)).toEqual(['mera-peak']);
+  it('makes Mera Peak and Keokradong playable and everything else coming soon', () => {
+    expect(PEAKS.filter(isPlayable).map((p) => p.id)).toEqual(['mera-peak', 'keokradong']);
     const unbaked: PeakEntry = {
       id: 'x',
       name: 'X',
@@ -43,7 +43,7 @@ describe('catalog', () => {
   it('lists playable peaks first and otherwise keeps catalog order', () => {
     expect(peaksIn('NP').map((p) => p.id)).toEqual(['mera-peak', 'island-peak', 'everest']);
     expect(peaksIn('IN').map((p) => p.id)).toEqual(['kangchenjunga', 'nanda-devi', 'stok-kangri']);
-    expect(peaksIn('BD').map((p) => p.id)).toEqual(['saka-haphong', 'keokradong']);
+    expect(peaksIn('BD').map((p) => p.id)).toEqual(['keokradong', 'saka-haphong']);
   });
 
   it('finds countries by code', () => {

@@ -48,3 +48,10 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] Acclimatization: the first rest at a camp gives +250 m ("Rested — acclimatized to +250 m"); a second rest there says "already acclimatized here" and does not raise it.
 - [ ] Standing still for a long time high up drains warmth; below 30 climbing is visibly slower. Idling near High Camp (outside the camp), warmth falls about 2.7 per minute: about 26 min to reach 30 (slow climbing) and about 37 min to hypothermia.
 - [ ] Stamina recovery at Khare is about half of M1's, because oxygen at Khare is 50. Note whether it feels too slow.
+
+## Keokradong
+
+- [ ] Bangladesh → Keokradong → Climb loads a green hill with trees.
+- [ ] The orange route runs Boga Lake → Ridge Camp → Summit with no trees on it.
+- [ ] The Summit checkpoint is reachable on foot.
+- [ ] FPS stays ≥ 30 among the trees.

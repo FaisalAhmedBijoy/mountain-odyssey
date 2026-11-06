@@ -151,3 +151,13 @@ A biome sets how a mountain looks. It does not change gameplay rules; `SurfaceRu
 - The real Keokradong DEM is not baked in CI e2e, so its terrain is verified by the bake (deploy job) and by playtest.
 
 **Bake:** run `npm run terrain:keokradong` locally once. It needs the network. Record the camp elevations and route slopes it prints in this spec.
+
+## 7. Bake results
+
+`npm run terrain:keokradong` (Copernicus GLO-30, height range 52–983 m):
+
+- Camp Boga Lake: 401.4 m at x=-1792, z=5872.
+- Camp Ridge Camp: 701.0 m at x=-16, z=4016.
+- Camp Summit: 981.5 m at x=-576, z=-770.
+- Route boga-lake → ridge-camp: 3589 m, max slope 32.82°.
+- Route ridge-camp → summit: 5008 m, max slope 32.38°.

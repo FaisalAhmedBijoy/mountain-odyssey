@@ -1,0 +1,12 @@
+{
+  "id": "keokradong",
+  "facts": {
+    "name": "Keokradong",
+    "country": "BD",
+    "elevationM": 986,
+    "location": { "lat": 21.95, "lon": 92.52 },
+    "sources": ["Copernicus GLO-30 DEM"]
+  },
+  "terrainBaseUrl": "terrain/keokradong",
+  "biome": "tropical-hills"
+}

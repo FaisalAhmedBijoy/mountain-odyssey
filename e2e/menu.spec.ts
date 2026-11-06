@@ -22,7 +22,10 @@ test('picks a country, then a mountain, then starts loading it', async ({ page }
 
   await page.getByRole('button', { name: /Countries/ }).click();
   await page.getByRole('button', { name: /Bangladesh/ }).click();
-  await expect(page.getByRole('button', { name: /Keokradong/ })).toContainText('≈ 986 m');
+  const keo = page.getByRole('button', { name: /Keokradong/ });
+  await expect(keo).toContainText('≈ 986 m');
+  await expect(keo).toBeEnabled();
+  await expect(keo).toContainText('Climb');
 
   await page.getByRole('button', { name: /Countries/ }).click();
   await page.getByRole('button', { name: /Nepal/ }).click();
@@ -44,4 +47,12 @@ test('an unknown mountain id offers a way to the menu', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText('Unknown mountain "nowhere".');
   await page.getByRole('button', { name: 'Choose a mountain' }).click();
   await expect(page.getByRole('heading', { name: 'Choose a country' })).toBeVisible();
+});
+
+test('loads a forested biome on the test peak', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?mountain=test-peak&biome=tropical-hills');
+  await expect(page.getByTestId('hud')).toBeVisible({ timeout: 45_000 });
+  expect(errors).toEqual([]);
 });

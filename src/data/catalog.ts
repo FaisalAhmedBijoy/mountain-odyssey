@@ -63,6 +63,7 @@ export const PEAKS: readonly PeakEntry[] = [
     name: 'Keokradong',
     country: 'BD',
     elevationM: 986,
+    mountainId: 'keokradong',
     approximate: true,
     note: SURVEYS_VARY,
   },
