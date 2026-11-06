@@ -178,7 +178,7 @@ bodyTemp < 30     → climb speed −30%
 
 `acclimatizationBonus` grows by 250 m per completed camp rest, capped at 1,000 m.
 
-**Deviation (M2a survival, 2026-11-06):** with the formula above, oxygen could never reach 0 (recovery 2/s outweighed the 1/s exertion drain). Exertion now pauses recovery and drains 2/s; without exertion oxygen rises toward the ceiling at 1/s. Air temperature is `25 − 6.5 °C/km`, baseline insulation is 20, and resting costs 10 supplies. Full rules: `2026-11-06-m2a-survival-design.md` §4.
+**Deviation (M2a survival, 2026-11-06):** with the formula above, oxygen could never reach 0 (recovery 2/s outweighed the 1/s exertion drain). Exertion now pauses recovery and drains 2/s; without exertion oxygen rises toward the ceiling at 1/s. Air temperature is `25 − 6.5 °C/km`, baseline insulation is 20, resting costs 10 supplies, and acclimatization is granted only on the first rest at each camp. Full rules: `2026-11-06-m2a-survival-design.md` §4.
 
 ### 5.3 Equipment and inventory
 

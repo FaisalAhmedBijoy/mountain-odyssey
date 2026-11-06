@@ -78,7 +78,7 @@ warnings at < 25 ("Low oxygen — stop and breathe") and < 10 ("Oxygen critical"
 - It cannot be stopped early.
 - The HUD shows the seconds left.
 
-**Acclimatization:** +250 m per rest, capped at 1,000 m. It is kept through respawn.
+**Acclimatization:** +250 m on the first rest at each camp (§4.5), capped at 1,000 m. It is kept through respawn.
 
 ### 4.2 Body temperature
 
