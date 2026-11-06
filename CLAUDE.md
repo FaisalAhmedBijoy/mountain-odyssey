@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Mountain Odyssey is a free, browser-based, third-person mountaineering game (desktop only, keyboard + mouse, WebGL2). Phase 0 + M1 (vertical slice: Khare → High Camp on Mera Peak) is implemented; the manual playtest gate in `docs/playtest/m1-checklist.md` is pending. M2a (survival stats, spec `docs/superpowers/specs/2026-11-06-m2a-survival-design.md`, plan `docs/superpowers/plans/2026-11-06-m2a-survival.md`) is implemented. The rest of M2 (M2b–M2f, per that spec's §1) is next; each sub-project gets its own spec and plan.
+Mountain Odyssey is a free, browser-based, third-person mountaineering game (desktop only, keyboard + mouse, WebGL2). Phase 0 + M1 (vertical slice: Khare → High Camp on Mera Peak) is implemented; the manual playtest gate in `docs/playtest/m1-checklist.md` is pending. M2a (survival stats, spec `docs/superpowers/specs/2026-11-06-m2a-survival-design.md`, plan `docs/superpowers/plans/2026-11-06-m2a-survival.md`) is implemented. The rest of M2 (M2b–M2f, per that spec's §1) is next; each sub-project gets its own spec and plan. Keokradong (Bangladesh; spec `docs/superpowers/specs/2026-11-06-keokradong-design.md`) is playable as a second mountain, with the `tropical-hills` biome and trees.
 
 - Design spec (source of truth for gameplay numbers and scope): `docs/superpowers/specs/2026-11-03-mountain-odyssey-design.md`
 - Implemented plan (Phase 0 + M1 vertical slice, 16 TDD tasks): `docs/superpowers/plans/2026-11-03-m1-vertical-slice.md`

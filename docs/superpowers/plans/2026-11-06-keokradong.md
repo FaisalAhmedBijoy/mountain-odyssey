@@ -26,18 +26,18 @@
 - Run `npm run format` before every commit. CI runs `format:check`, `lint`, `typecheck`, `test`, `build` and `e2e`. Python tests: `.venv/bin/python -m pytest tools/terrain -q`.
 - Commit messages end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
-## Verified bake values (trial bake, 2026-11-06)
+## Verified bake values (rebake, 2026-11-06)
 
-A trial bake with centre 21.95° N, 92.52° E, 24 × 256 cells at 2 m, the DEM tile `N21_00_E092_00`, and the summit included in the routes produced:
+A bake with centre 21.94° N, 92.52° E, 24 × 256 cells at 2 m, the DEM tile `N21_00_E092_00`, and the summit included in the routes produced the values below. (An earlier trial at 21.95° N read past the tile's north edge and was mis-registered; the bake now refuses such windows.)
 
 | Item | Value |
 |---|---|
-| Boga Lake (target 400 m) | 401.4 m at x = −1792, z = 5872 |
-| Ridge Camp (target 700 m) | 701.0 m at x = −16, z = 4016 |
-| Summit | 981.5 m at x = −576, z = −770 |
-| Route Boga Lake → Ridge Camp | 3,589 m, max slope 32.82° |
-| Route Ridge Camp → Summit | 5,008 m, max slope 32.38° |
-| Height range | 52–983 m |
+| Boga Lake (target 400 m) | 402.2 m at x = −3344, z = −2032 |
+| Ridge Camp (target 700 m) | 697.2 m at x = 472, z = 152 |
+| Summit | 979.6 m at x = −576, z = −1110 |
+| Route Boga Lake → Ridge Camp | 6,320 m, max slope 32.99° |
+| Route Ridge Camp → Summit | 4,001 m, max slope 32.99° |
+| Height range | 44–981 m |
 
 ---
 
@@ -121,7 +121,7 @@ Expected: all PASS.
 ```json
 {
   "id": "keokradong",
-  "centerLat": 21.95,
+  "centerLat": 21.94,
   "centerLon": 92.52,
   "tiles": 24,
   "tileCells": 256,

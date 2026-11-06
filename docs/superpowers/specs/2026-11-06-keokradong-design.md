@@ -33,7 +33,7 @@ Only supplies and stamina matter, and that is accepted for this version.
 
 **New config `tools/terrain/keokradong.config.json`:**
 - The same shape as `mera-peak.config.json`.
-- `id: "keokradong"`, centred near the summit (≈ 21.95° N, 92.52° E).
+- `id: "keokradong"`, centred near the summit at 21.94° N, 92.52° E. The centre sits about 1 km south of the summit (≈ 21.949° N) so that the window plus its margin stays inside the DEM tile (north edge ≈ 21.997° N < 22° N).
 - 24 tiles × 256 cells at 2 m (about 12.3 km square), with an 8 m coarse grid and a 64 m backdrop.
 - The Copernicus GLO-30 COG for tile `N21_00_E092_00`.
 - Attribution `Contains modified Copernicus DEM data`.
@@ -154,10 +154,12 @@ A biome sets how a mountain looks. It does not change gameplay rules; `SurfaceRu
 
 ## 7. Bake results
 
-`npm run terrain:keokradong` (Copernicus GLO-30, height range 52–983 m):
+`npm run terrain:keokradong` (Copernicus GLO-30, centre 21.94° N, 92.52° E, height range 44–981 m):
 
-- Camp Boga Lake: 401.4 m at x=-1792, z=5872.
-- Camp Ridge Camp: 701.0 m at x=-16, z=4016.
-- Camp Summit: 981.5 m at x=-576, z=-770.
-- Route boga-lake → ridge-camp: 3589 m, max slope 32.82°.
-- Route ridge-camp → summit: 5008 m, max slope 32.38°.
+- Camp Boga Lake: 402.2 m at x=-3344, z=-2032 (2,800 m from the nearest grid edge).
+- Camp Ridge Camp: 697.2 m at x=472, z=152.
+- Camp Summit: 979.6 m at x=-576, z=-1110.
+- Route boga-lake → ridge-camp: 6320 m, max slope 32.99°.
+- Route ridge-camp → summit: 4001 m, max slope 32.99°.
+
+The first bake (centre 21.95° N) was mis-registered: its window crossed the north edge of DEM tile `N21_00_E092_00`, the read was silently cropped, and the terrain was shifted about 820 m and edge-replicated in the south, where Boga Lake had been placed. The bake now refuses any window that is not fully covered by the DEM (`check_dem_coverage` in `tools/terrain/bake.py`).

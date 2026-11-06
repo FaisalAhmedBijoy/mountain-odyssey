@@ -6,7 +6,7 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 
 ![Mera Peak: the climber at Khare camp with the route guide, stamina HUD and controls panel](docs/images/mera-peak.png)
 
-> **Status: playable vertical slice (M1) plus survival (M2a).** You can walk, run, slide and climb on Mera Peak (Nepal) from Khare (≈ 5,000 m) to High Camp (≈ 5,800 m), managing oxygen, warmth and supplies on the way. Weather, equipment and the full summit route come later in M2 (see [Roadmap](#roadmap)).
+> **Status: playable vertical slice (M1) plus survival (M2a).** You can walk, run, slide and climb on Mera Peak (Nepal) from Khare (≈ 5,000 m) to High Camp (≈ 5,800 m), managing oxygen, warmth and supplies on the way. Keokradong (Bangladesh, ≈ 986 m) is the second playable mountain: forested green hills you walk from Boga Lake to the summit. Weather, equipment and the full summit route come later in M2 (see [Roadmap](#roadmap)).
 
 ## Features
 
