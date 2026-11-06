@@ -28,6 +28,7 @@ import { loadManifest, type CampDef, type TerrainManifest } from '../world/terra
 import { TerrainSampler } from '../world/TerrainSampler';
 import { isOutOfWorld } from '../world/worldBounds';
 import { EventBus } from './EventBus';
+import { TeaSystem } from '../world/TeaSystem';
 import { TreeSystem } from '../world/TreeSystem';
 import type { GameEvents, RespawnCause } from './events';
 import { GameLoop } from './GameLoop';
@@ -56,6 +57,7 @@ interface World {
   sampler: TerrainSampler;
   chunks: ChunkManager;
   trees: TreeSystem[];
+  tea: TeaSystem[];
   player: Player;
   visual: PlayerVisual;
   cameraCtrl: ThirdPersonCamera;
@@ -180,11 +182,17 @@ export class Game {
     });
 
     const trees: TreeSystem[] = [];
+    const tea: TeaSystem[] = [];
     for (const layer of cfg.biomes[o.biome].vegetation) {
-      if (layer.kind !== 'trees') continue; // Task 4: tea layers
-      const system = new TreeSystem(this.scene, manifest, sampler, layer);
-      trees.push(system);
-      this.cleanup.push(() => system.dispose());
+      if (layer.kind === 'trees') {
+        const system = new TreeSystem(this.scene, manifest, sampler, layer);
+        trees.push(system);
+        this.cleanup.push(() => system.dispose());
+      } else if (layer.kind === 'tea') {
+        const system = new TeaSystem(this.scene, manifest, sampler, layer);
+        tea.push(system);
+        this.cleanup.push(() => system.dispose());
+      }
     }
 
     await chunks.loadBackdrop();
@@ -214,6 +222,7 @@ export class Game {
       sampler,
       chunks,
       trees,
+      tea,
       player,
       visual,
       cameraCtrl: new ThirdPersonCamera(this.camera, (x, z) => sampler.heightAt(x, z)),
@@ -409,7 +418,10 @@ export class Game {
     this.guideHud = w.guide.update(feet, w.cameraCtrl.yaw);
     this.environment.follow(feet);
     if (!this.respawning) w.chunks.update(feet.x, feet.z).catch((err: unknown) => this.fail(err));
-    if (!this.respawning) for (const t of w.trees) t.update(feet.x, feet.z);
+    if (!this.respawning) {
+      for (const t of w.trees) t.update(feet.x, feet.z);
+      for (const t of w.tea) t.update(feet.x, feet.z);
+    }
     this.renderer.render(this.scene, this.camera);
     this.publishHud(frameDt);
   }
