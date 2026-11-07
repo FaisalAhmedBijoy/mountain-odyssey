@@ -205,7 +205,7 @@ export const GAME_CONFIG = {
           bandFraction: 0.35,
           routeClearanceM: 4,
           campClearanceM: 20,
-          radiusM: 250,
+          radiusM: 190,
           cellSizeM: 64,
           maxCellsPerUpdate: 2,
           castShadow: false,

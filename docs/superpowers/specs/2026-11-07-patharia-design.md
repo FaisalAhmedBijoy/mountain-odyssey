@@ -118,6 +118,7 @@ DEM probe (2026-11-07): the ridge runs north–south along ≈ 92.22–92.26° E
 - It is drawn with an `InstancedMesh` per 64 m cell, for cells within `rules.radiusM` (about 250 m) of the player.
 - Cells are built at most two per frame and dropped when out of range.
 - No colliders, and no shadows by default.
+- Deviation: cells are kept when their nearest point is within `radiusM` (not their centre), and `radiusM` is 190 m (not 250 m) to keep the hedge count near 15 k. Built cells are only dropped beyond `radiusM + cellSizeM / 2` (hysteresis).
 - Target: about 15 k hedge instances or fewer around the player. Farther tea shows only as palette stripes.
 
 The engine wiring (`Game`) creates one system per layer kind from `cfg.biomes[biome].vegetation`. It calls `update` on each in `render`, skipping it while respawning, and disposes them on cleanup.

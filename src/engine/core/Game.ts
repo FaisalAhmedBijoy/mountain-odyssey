@@ -25,10 +25,10 @@ import {
 } from '../world/mapMath';
 import { NO_GEAR } from '../world/surface';
 import { loadManifest, type CampDef, type TerrainManifest } from '../world/terrainData';
+import { TeaSystem } from '../world/TeaSystem';
 import { TerrainSampler } from '../world/TerrainSampler';
 import { isOutOfWorld } from '../world/worldBounds';
 import { EventBus } from './EventBus';
-import { TeaSystem } from '../world/TeaSystem';
 import { TreeSystem } from '../world/TreeSystem';
 import type { GameEvents, RespawnCause } from './events';
 import { GameLoop } from './GameLoop';

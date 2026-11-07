@@ -57,6 +57,10 @@ export class TeaSystem {
   /** Built cells; the value is null when the cell holds no tea. */
   private readonly cells = new Map<string, THREE.InstancedMesh | null>();
 
+  private lastPlayerCell = '';
+  /** True when no wanted cell was left unbuilt on the last full update. */
+  private complete = false;
+
   constructor(
     private readonly parent: THREE.Object3D,
     private readonly manifest: TerrainManifest,
@@ -74,16 +78,22 @@ export class TeaSystem {
   }
 
   update(x: number, z: number): void {
+    const cs0 = this.rules.cellSizeM;
+    const cellKey = `${Math.floor(x / cs0)}_${Math.floor(z / cs0)}`;
+    if (cellKey === this.lastPlayerCell && this.complete) return;
+    this.lastPlayerCell = cellKey;
     const m = this.manifest;
     const cs = this.rules.cellSizeM;
     const extent = m.tilesX * (m.tileSamples - 1) * m.spacingM;
     const extentZ = m.tilesZ * (m.tileSamples - 1) * m.spacingM;
     const r = this.rules.radiusM;
+    const keepDist = r + cs / 2;
     const wanted = new Map<string, { ci: number; cj: number; dist: number }>();
-    const i0 = Math.floor((x - r) / cs);
-    const i1 = Math.floor((x + r) / cs);
-    const j0 = Math.floor((z - r) / cs);
-    const j1 = Math.floor((z + r) / cs);
+    const keep = new Set<string>();
+    const i0 = Math.floor((x - keepDist) / cs);
+    const i1 = Math.floor((x + keepDist) / cs);
+    const j0 = Math.floor((z - keepDist) / cs);
+    const j1 = Math.floor((z + keepDist) / cs);
     for (let cj = j0; cj <= j1; cj++) {
       for (let ci = i0; ci <= i1; ci++) {
         const x0 = ci * cs;
@@ -97,16 +107,24 @@ export class TeaSystem {
           Math.max(z0 - z, 0, z - (z0 + cs)),
         );
         if (dist <= r) wanted.set(`${ci}_${cj}`, { ci, cj, dist });
+        // Cells already built stay until they are clearly out of range.
+        if (dist <= keepDist) keep.add(`${ci}_${cj}`);
       }
     }
     for (const key of [...this.cells.keys()]) {
-      if (!wanted.has(key)) this.removeCell(key);
+      if (!keep.has(key)) this.removeCell(key);
     }
     const missing = [...wanted.entries()]
       .filter(([key]) => !this.cells.has(key))
       .sort((a, b) => a[1].dist - b[1].dist)
       .slice(0, this.rules.maxCellsPerUpdate);
     for (const [key, c] of missing) this.cells.set(key, this.buildCell(c.ci, c.cj));
+    this.complete = !this.hasMissing(wanted);
+  }
+
+  private hasMissing(wanted: Map<string, unknown>): boolean {
+    for (const key of wanted.keys()) if (!this.cells.has(key)) return true;
+    return false;
   }
 
   dispose(): void {

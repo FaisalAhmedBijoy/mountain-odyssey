@@ -58,10 +58,24 @@ describe('TeaSystem', () => {
     const tea = new TeaSystem(scene, manifest, ground, rules);
     for (let i = 0; i < 50; i++) tea.update(-300, -300);
     const before = tea.cellCount;
+    const previous = [...scene.children];
     for (let i = 0; i < 50; i++) tea.update(300, 300);
     expect(tea.cellCount).toBe(before);
+    expect(scene.children.length).toBe(tea.cellCount);
+    for (const m of previous) expect(scene.children).not.toContain(m);
     for (const m of scene.children) {
       expect((m as THREE.InstancedMesh).count).toBeGreaterThan(0);
     }
+  });
+
+  it('keeps built cells when the player moves a little (hysteresis)', () => {
+    const scene = new THREE.Scene();
+    const tea = new TeaSystem(scene, manifest, ground, rules);
+    for (let i = 0; i < 50; i++) tea.update(0, 0);
+    const before = [...scene.children];
+    for (let i = 0; i < 50; i++) tea.update(20, 0);
+    for (const m of before) expect(scene.children).toContain(m);
+    for (let i = 0; i < 50; i++) tea.update(0, 0);
+    for (const m of before) expect(scene.children).toContain(m);
   });
 });
