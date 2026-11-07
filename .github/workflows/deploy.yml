@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install numpy pillow rasterio
+      - run: pip install -r tools/terrain/requirements.txt
       - run: npm ci
       - name: Bake terrain (synthetic test-peak, Mera Peak, Keokradong and Patharia from Copernicus DEM)
         run: |
