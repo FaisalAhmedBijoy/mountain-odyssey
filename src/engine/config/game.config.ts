@@ -163,7 +163,7 @@ export const GAME_CONFIG = {
           { maxSlopeDeg: 35, color: [0.15, 0.33, 0.14] },
           { maxSlopeDeg: 90, color: [0.58, 0.36, 0.22] },
         ],
-        stripes: { bandIndex: 1, riseM: 0.8, contrast: 0.18 },
+        stripes: { bandIndex: 1, riseM: 3, contrast: 0.25 },
       },
       sky: { color: 0xd9e6dc, fogNear: 400, fogFar: 4500 },
       vegetation: [

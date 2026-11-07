@@ -5,8 +5,8 @@ import type { TreeAvoid } from './treePlacement';
 
 // Visual constants (metres, sRGB hex). Tuning numbers (spacing, bands, radius) live in GAME_CONFIG.
 const HEDGE = { length: 1.8, width: 0.9, height: 0.8 };
-const TOP_COLOR = 0x4f8f2e;
-const SIDE_COLOR = 0x2f5e1f;
+export const HEDGE_TOP_COLOR = 0x5ea83a;
+export const HEDGE_SIDE_COLOR = 0x467f2b;
 /** Top vertices are pulled this fraction toward the hedge centre to round the top. */
 const TOP_ROUNDING = 0.1;
 
@@ -31,8 +31,10 @@ function buildHedgeGeometry(): THREE.BufferGeometry {
   const g = box.toNonIndexed();
   box.dispose();
   g.deleteAttribute('uv');
-  const top = new THREE.Color(TOP_COLOR).convertSRGBToLinear();
-  const side = new THREE.Color(SIDE_COLOR).convertSRGBToLinear();
+  // setHex with SRGBColorSpace converts to the linear working space once. Calling
+  // convertSRGBToLinear() on top of new Color(hex) linearised twice (near-black hedges).
+  const top = new THREE.Color().setHex(HEDGE_TOP_COLOR, THREE.SRGBColorSpace);
+  const side = new THREE.Color().setHex(HEDGE_SIDE_COLOR, THREE.SRGBColorSpace);
   const p = g.getAttribute('position');
   const colors = new Float32Array(p.count * 3);
   for (let i = 0; i < p.count; i++) {

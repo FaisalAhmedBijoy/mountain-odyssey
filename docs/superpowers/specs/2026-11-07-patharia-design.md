@@ -83,9 +83,10 @@ DEM probe (2026-11-07): the ridge runs north–south along ≈ 92.22–92.26° E
   - On vertices whose slope falls in that band (tea), the colour is multiplied by `1 − contrast · s(altitude / riseM)`.
   - `s` is a smooth periodic 0–1 profile, for example `0.5 − 0.5·cos(2π·frac)`.
   - This draws contour-following rows that are visible from a distance.
-  - The defaults are `riseM: 0.8` and `contrast: 0.18`, to be tuned in playtest.
+  - The defaults are `riseM: 3` and `contrast: 0.25`, to be tuned in playtest.
+  - Why not the hedge rise (0.8 m): terrain vertices are 2–64 m apart depending on LOD, so a 0.8 m rise (stripes a few metres apart on gentle slopes) aliased away and the stripes were invisible at a distance. The palette stripes are therefore coarser than the hedge rows, which keep their own `riseM: 0.8`.
   - It is applied in `terrainColor`, so the 3-D terrain shows it.
-  - Deviation: the relief map draws the palette without stripes, because its 64 m samples would alias the 0.8 m-rise stripes into noise.
+  - Deviation: the relief map draws the palette without stripes, because its 64 m samples would alias the 3 m-rise stripes into noise.
 
 **Sky:** a bright pale morning haze, for example colour `0xd9e6dc`, fog near 400, fog far 4500.
 
