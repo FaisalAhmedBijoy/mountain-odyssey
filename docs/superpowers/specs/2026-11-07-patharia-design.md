@@ -86,6 +86,7 @@ DEM probe (2026-11-07): the ridge runs north–south along ≈ 92.22–92.26° E
   - The defaults are `riseM: 3` and `contrast: 0.25`, to be tuned in playtest.
   - Why not the hedge rise (0.8 m): terrain vertices are 2–64 m apart depending on LOD, so a 0.8 m rise (stripes a few metres apart on gentle slopes) aliased away and the stripes were invisible at a distance. The palette stripes are therefore coarser than the hedge rows, which keep their own `riseM: 0.8`.
   - It is applied in `terrainColor`, so the 3-D terrain shows it.
+  - Stripes are drawn only where terrain vertices are at most `maxVertexSpacingM` (4 m) apart, i.e. LOD steps 1 and 2, within about 1 km. Farther tea (steps 8 and 32, and the 64 m backdrop) shows the plain tea colour, because stripes would alias there. `buildGridGeometry` switches to `withoutStripes` when `step * spacingM` exceeds the limit.
   - Deviation: the relief map draws the palette without stripes, because its 64 m samples would alias the 3 m-rise stripes into noise.
 
 **Sky:** a bright pale morning haze, for example colour `0xd9e6dc`, fog near 400, fog far 4500.
@@ -120,7 +121,7 @@ DEM probe (2026-11-07): the ridge runs north–south along ≈ 92.22–92.26° E
 - Cells are built at most two per frame and dropped when out of range.
 - No colliders, and no shadows by default.
 - Deviation: cells are kept when their nearest point is within `radiusM` (not their centre), and `radiusM` is 190 m (not 250 m) to keep the hedge count near 15 k. Built cells are only dropped beyond `radiusM + cellSizeM / 2` (hysteresis).
-- Target: about 15 k hedge instances or fewer around the player. Farther tea shows only as palette stripes.
+- Target: about 15 k hedge instances or fewer around the player. Farther tea shows palette stripes out to about 1 km, then the plain tea colour.
 
 The engine wiring (`Game`) creates one system per layer kind from `cfg.biomes[biome].vegetation`. It calls `update` on each in `render`, skipping it while respawning, and disposes them on cleanup.
 

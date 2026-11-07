@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { tileIndexAt } from './ChunkManager';
 import type { TerrainManifest } from './terrainData';
 import { placeTea, type TeaGround, type TeaRules } from './teaPlacement';
 import type { TreeAvoid } from './treePlacement';
@@ -80,12 +81,13 @@ export class TeaSystem {
   }
 
   update(x: number, z: number): void {
-    const cs0 = this.rules.cellSizeM;
-    const cellKey = `${Math.floor(x / cs0)}_${Math.floor(z / cs0)}`;
+    const cs = this.rules.cellSizeM;
+    // Finer than a cell: a move within one cell can still bring new cells into range.
+    const fine = cs / 4;
+    const cellKey = `${Math.floor(x / fine)}_${Math.floor(z / fine)}`;
     if (cellKey === this.lastPlayerCell && this.complete) return;
     this.lastPlayerCell = cellKey;
     const m = this.manifest;
-    const cs = this.rules.cellSizeM;
     const extent = m.tilesX * (m.tileSamples - 1) * m.spacingM;
     const extentZ = m.tilesZ * (m.tileSamples - 1) * m.spacingM;
     const r = this.rules.radiusM;
@@ -118,10 +120,24 @@ export class TeaSystem {
     }
     const missing = [...wanted.entries()]
       .filter(([key]) => !this.cells.has(key))
+      .filter(([, c]) => this.tilesLoaded(c.ci, c.cj))
       .sort((a, b) => a[1].dist - b[1].dist)
       .slice(0, this.rules.maxCellsPerUpdate);
     for (const [key, c] of missing) this.cells.set(key, this.buildCell(c.ci, c.cj));
     this.complete = !this.hasMissing(wanted);
+  }
+
+  /** True when every terrain tile overlapping the cell is loaded (or the ground cannot tell). */
+  private tilesLoaded(ci: number, cj: number): boolean {
+    const has = this.ground.hasTile;
+    if (!has) return true;
+    const cs = this.rules.cellSizeM;
+    const a = tileIndexAt(this.manifest, ci * cs, cj * cs);
+    const b = tileIndexAt(this.manifest, (ci + 1) * cs, (cj + 1) * cs);
+    for (let tz = a.tz; tz <= b.tz; tz++) {
+      for (let tx = a.tx; tx <= b.tx; tx++) if (!has.call(this.ground, tx, tz)) return false;
+    }
+    return true;
   }
 
   private hasMissing(wanted: Map<string, unknown>): boolean {
@@ -152,7 +168,10 @@ export class TeaSystem {
     const mesh = new THREE.InstancedMesh(this.geometry, this.material, placed.length);
     const dummy = new THREE.Object3D();
     placed.forEach((t, i) => {
-      dummy.position.set(t.x, t.y, t.z);
+      // Sink the downhill half of the hedge into the slope so it does not float.
+      const slope = this.ground.slopeDegAt(t.x, t.z) ?? 0;
+      const sink = 0.5 * HEDGE.width * Math.tan((slope * Math.PI) / 180);
+      dummy.position.set(t.x, t.y - sink, t.z);
       dummy.rotation.set(0, t.yaw, 0);
       dummy.scale.setScalar(1);
       dummy.updateMatrix();

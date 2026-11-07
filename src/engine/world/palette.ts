@@ -13,6 +13,8 @@ export type TerrainPalette =
         readonly bandIndex: number;
         readonly riseM: number;
         readonly contrast: number;
+        /** Stripes are dropped when terrain vertices are farther apart than this (m). Default: no limit. */
+        readonly maxVertexSpacingM?: number;
       };
     };
 
@@ -22,7 +24,7 @@ export type LinearPalette =
   | {
       kind: 'slope';
       bands: { maxSlopeDeg: number; color: Rgb }[];
-      stripes?: { bandIndex: number; riseM: number; contrast: number };
+      stripes?: { bandIndex: number; riseM: number; contrast: number; maxVertexSpacingM?: number };
     };
 
 const srgbToLinear = (c: number): number =>

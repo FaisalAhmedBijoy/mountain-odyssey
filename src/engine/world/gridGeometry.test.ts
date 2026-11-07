@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from '../config/game.config';
+import { withoutStripes, type TerrainPalette } from './palette';
 import { buildGridGeometry, type GridGeometryArgs } from './gridGeometry';
 
 function args(overrides: Partial<GridGeometryArgs> = {}): GridGeometryArgs {
@@ -93,5 +94,31 @@ describe('buildGridGeometry', () => {
       args({ skirtDepthM: 0, heights: new Float32Array(25).fill(5350) }),
     );
     expect(snow.colors[0]).toBeGreaterThan(rock.colors[0] * 1.5);
+  });
+});
+
+describe('buildGridGeometry stripes', () => {
+  const striped: TerrainPalette = {
+    kind: 'slope',
+    bands: [{ maxSlopeDeg: 90, color: [0.3, 0.55, 0.2] }],
+    stripes: { bandIndex: 0, riseM: 3, contrast: 0.25, maxVertexSpacingM: 4 },
+  };
+  // 9 x 9 grid rising 0.5 m per sample along x (gentle slope, heights span several rises).
+  const heights = new Float32Array(81).map((_, i) => 100 + 0.5 * (i % 9) * 3);
+  const base = { heights, samplesX: 9, samplesZ: 9, skirtDepthM: 0, palette: striped };
+  it('keeps stripes at vertex spacing within the limit', () => {
+    const a = buildGridGeometry(args({ ...base, step: 1, spacingM: 2 }));
+    const b = buildGridGeometry(
+      args({ ...base, step: 1, spacingM: 2, palette: withoutStripes(striped) }),
+    );
+    expect(Array.from(a.colors)).not.toEqual(Array.from(b.colors));
+  });
+
+  it('drops stripes when vertex spacing exceeds the limit', () => {
+    const a = buildGridGeometry(args({ ...base, step: 4, spacingM: 2 }));
+    const b = buildGridGeometry(
+      args({ ...base, step: 4, spacingM: 2, palette: withoutStripes(striped) }),
+    );
+    expect(Array.from(a.colors)).toEqual(Array.from(b.colors));
   });
 });

@@ -1,4 +1,4 @@
-import { linearPalette, terrainColor, type TerrainPalette } from './palette';
+import { linearPalette, terrainColor, withoutStripes, type TerrainPalette } from './palette';
 import type { SurfaceRules } from './surface';
 
 export interface GridGeometryArgs {
@@ -35,7 +35,11 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
   if (step < 1 || (samplesX - 1) % step !== 0 || (samplesZ - 1) % step !== 0) {
     throw new Error(`LOD step ${step} must divide ${samplesX - 1} x ${samplesZ - 1} cells`);
   }
-  const palette = linearPalette(a.palette);
+  // Stripes alias when vertices are farther apart than the palette allows.
+  const limit = a.palette.kind === 'slope' ? a.palette.stripes?.maxVertexSpacingM : undefined;
+  const palette = linearPalette(
+    limit !== undefined && step * spacingM > limit ? withoutStripes(a.palette) : a.palette,
+  );
   const nx = (samplesX - 1) / step + 1;
   const nz = (samplesZ - 1) / step + 1;
   const hasSkirt = skirtDepthM > 0;

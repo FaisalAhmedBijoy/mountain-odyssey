@@ -19,6 +19,8 @@ export interface TeaGround {
   heightAt(x: number, z: number): number | null;
   slopeDegAt(x: number, z: number): number | null;
   normalAt(x: number, z: number): { x: number; y: number; z: number } | null;
+  /** Whether the terrain tile is loaded (optional; TerrainSampler has it). */
+  hasTile?(tx: number, tz: number): boolean;
 }
 
 export interface TeaInstance {

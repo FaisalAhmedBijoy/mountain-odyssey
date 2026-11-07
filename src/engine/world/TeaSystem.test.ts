@@ -79,6 +79,39 @@ describe('TeaSystem', () => {
     for (const m of before) expect(scene.children).toContain(m);
   });
 
+  it('builds newly wanted cells after a 40 m diagonal move inside the same cell', () => {
+    const scene = new THREE.Scene();
+    const tea = new TeaSystem(scene, manifest, ground, rules);
+    for (let i = 0; i < 50; i++) tea.update(1, 1);
+    const before = tea.cellCount;
+    for (let i = 0; i < 50; i++) tea.update(41, 41);
+    expect(tea.cellCount).toBeGreaterThan(before);
+  });
+
+  it('does not build or cache cells on unloaded terrain', () => {
+    const scene = new THREE.Scene();
+    let loaded = false;
+    const tea = new TeaSystem(scene, manifest, { ...ground, hasTile: () => loaded }, rules);
+    for (let i = 0; i < 10; i++) tea.update(0, 0);
+    expect(tea.cellCount).toBe(0);
+    loaded = true;
+    for (let i = 0; i < 50; i++) tea.update(0, 0);
+    expect(tea.cellCount).toBeGreaterThan(0);
+  });
+
+  it('sinks hedges on slopes by half the hedge width times tan(slope)', () => {
+    const scene = new THREE.Scene();
+    const tea = new TeaSystem(scene, manifest, ground, rules);
+    tea.update(0, 0);
+    const mesh = scene.children[0] as THREE.InstancedMesh;
+    const m = new THREE.Matrix4();
+    mesh.getMatrixAt(0, m);
+    const y = new THREE.Vector3().setFromMatrixPosition(m).y;
+    // Without the sink, y would sit exactly on the terrain height 100 + grade * z.
+    const z = new THREE.Vector3().setFromMatrixPosition(m).z;
+    expect(y).toBeCloseTo(100 + grade * z - 0.5 * 0.9 * grade, 5);
+  });
+
   it('colours hedges with the sRGB constants converted to linear exactly once', () => {
     const scene = new THREE.Scene();
     const tea = new TeaSystem(scene, manifest, ground, rules);
