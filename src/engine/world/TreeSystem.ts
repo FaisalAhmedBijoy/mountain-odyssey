@@ -5,8 +5,8 @@ import type { TerrainManifest } from './terrainData';
 import { placeTrees, type TreeAvoid, type TreeGround, type TreeRules } from './treePlacement';
 
 // Visual constants (metres, sRGB hex). Tuning numbers (density, spacing, scale) live in GAME_CONFIG.
-const TRUNK_COLOR = 0x5a3b22;
-const CROWN_COLORS = [0x2f6b2a, 0x3d7a2e, 0x4f8a36] as const;
+export const TRUNK_COLOR = 0x5a3b22;
+export const CROWN_COLORS = [0x2f6b2a, 0x3d7a2e, 0x4f8a36] as const;
 const CONIFER = { trunkR: 0.15, trunkH: 2, crownR: 1.6, crownH: 4, crownY: 4 };
 const BROADLEAF = { trunkR: 0.2, trunkH: 2.5, crownR: 2, crownY: 3.8 };
 const BUSH = { crownR: 1.1, crownY: 0.9 };
@@ -20,8 +20,8 @@ function part(geo: THREE.BufferGeometry, y: number, hex: number): THREE.BufferGe
   const g = geo.index ? geo.toNonIndexed() : geo;
   if (g !== geo) geo.dispose();
   g.translate(0, y, 0);
-  const c = new THREE.Color(hex);
-  c.convertSRGBToLinear();
+  // Converts the sRGB hex to the linear working space exactly once.
+  const c = new THREE.Color().setHex(hex, THREE.SRGBColorSpace);
   const n = g.getAttribute('position').count;
   const colors = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {

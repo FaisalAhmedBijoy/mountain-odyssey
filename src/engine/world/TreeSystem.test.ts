@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { TerrainManifest } from './terrainData';
-import { TreeSystem } from './TreeSystem';
+import { CROWN_COLORS, TreeSystem, TRUNK_COLOR } from './TreeSystem';
 
 // 5 x 5 tiles of 64 m (65 samples at 1 m), origin at 0,0.
 const manifest: TerrainManifest = {
@@ -60,5 +60,35 @@ describe('TreeSystem', () => {
     const trees = new TreeSystem(scene, manifest, { ...ground, hasTile: () => false }, rules);
     for (let i = 0; i < 5; i++) trees.update(160, 160);
     expect(trees.tileCount).toBe(0);
+  });
+
+  it('colours trees with the sRGB constants converted to linear exactly once', () => {
+    const scene = new THREE.Scene();
+    const trees = new TreeSystem(scene, manifest, ground, rules);
+    for (let i = 0; i < 20; i++) trees.update(160, 160);
+    const lin = (hex: number): number[] =>
+      [16, 8, 0].map((shift) => {
+        const c = ((hex >> shift) & 0xff) / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+    const expected = [TRUNK_COLOR, ...CROWN_COLORS].map(lin);
+    const crowns = CROWN_COLORS.map(lin);
+    const geometries = new Set<THREE.BufferGeometry>();
+    scene.traverse((o) => {
+      if (o instanceof THREE.InstancedMesh) geometries.add(o.geometry);
+    });
+    expect(geometries.size).toBeGreaterThan(0);
+    let crownVertices = 0;
+    for (const geo of geometries) {
+      const col = geo.getAttribute('color');
+      for (let i = 0; i < col.count; i++) {
+        const rgb = [col.getX(i), col.getY(i), col.getZ(i)];
+        const close = (e: number[]): boolean => e.every((v, k) => Math.abs(v - rgb[k]) < 1e-5);
+        expect(expected.some(close), `vertex colour ${rgb.join(',')}`).toBe(true);
+        if (crowns.some(close)) crownVertices++;
+      }
+    }
+    expect(crownVertices).toBeGreaterThan(0);
+    trees.dispose();
   });
 });
