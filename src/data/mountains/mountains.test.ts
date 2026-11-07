@@ -4,11 +4,12 @@ import { getMountain } from '.';
 
 describe('mountains', () => {
   it('declares a known biome for every mountain', () => {
-    for (const id of ['mera-peak', 'test-peak', 'keokradong']) {
+    for (const id of ['mera-peak', 'test-peak', 'keokradong', 'patharia']) {
       const m = getMountain(id);
       expect(m).not.toBeNull();
       expect(isBiomeId(m!.biome)).toBe(true);
     }
     expect(getMountain('keokradong')!.biome).toBe('tropical-hills');
+    expect(getMountain('patharia')!.biome).toBe('tea-garden');
   });
 });

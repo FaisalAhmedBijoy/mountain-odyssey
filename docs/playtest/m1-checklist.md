@@ -62,3 +62,12 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] Tab opens the full map, with every camp's name and elevation and "Next: … · distance".
 - [ ] Reaching a camp turns its dot green, and the next camp turns yellow.
 - [ ] FPS is unaffected.
+
+## Patharia Hills
+
+- [ ] Bangladesh → Patharia Hills → Climb loads tea slopes.
+- [ ] Hedge rows near you follow the hill's contours, and farther slopes show contour stripes.
+- [ ] Shade trees stand scattered on the tea, and steep tilas are forested.
+- [ ] The route Tea Estate → Madhabkunda → Ridge Top is clear of hedges and trees.
+- [ ] The map shows the three stops.
+- [ ] FPS stays ≥ 30.

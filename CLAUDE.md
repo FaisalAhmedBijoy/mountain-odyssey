@@ -30,6 +30,7 @@ python3 -m venv .venv && .venv/bin/pip install -r tools/terrain/requirements.txt
 npm run terrain:test   # bake synthetic test-peak  -> public/terrain/test-peak
 npm run terrain:mera   # bake Mera Peak from Copernicus DEM (network, ~25 MB) -> public/terrain/mera-peak
 npm run terrain:keokradong   # bake Keokradong (Bangladesh) from Copernicus DEM (network)
+npm run terrain:patharia   # bake Patharia Hills (Sylhet) from Copernicus DEM (network)
 ```
 
 Production: pushes to `main` that pass CI are deployed to GitHub Pages (`.github/workflows/deploy.yml`, site under `/mountain-odyssey/`). Static files in `public/` must be referenced through `assetUrl()` (`src/app/assetUrl.ts`), never with a leading `/`, so they resolve under that base path. Local check: `VITE_BASE=/mountain-odyssey/ npm run build && npx vite preview --base /mountain-odyssey/`.
@@ -53,6 +54,7 @@ Without a query the app opens on the country menu (country → mountain → game
 **Terrain is data, not code:**
 
 - Offline: `tools/terrain/bake.py` crops the Copernicus GLO-30 DEM, resamples it to a 2 m local metric grid, adds detail noise, places camps on one connected walkable region (slope < 30°, stricter than the engine) near each target elevation, validates that consecutive camps are walk-connected and that every route stays below `routeMaxSlopeDeg` (33°, equal to `GAME_CONFIG.movement.maxWalkSlopeDeg`) on the 2 m cells it crosses (bake fails otherwise) and writes `manifest.json`, `backdrop.u16` and `tiles/<tx>_<tz>.u16`.
+- `"summitName"` in a bake config renames the summit camp (default "Summit").
 - A bake config with `"summitWalkable": true` adds the summit to the walk check and routes, for mountains walked to the top.
 - The bake also writes `routes` (A* over the walkable grid, string-pulled, points ≤ 20 m apart, markers every 100 m and at turns) for each pair of consecutive camps. `RouteGuide` draws them as a ground ribbon (`T` toggles) plus flags, and `routeMath.ts` feeds the HUD arrow.
 - Tiles are raw little-endian `uint16`, 257 × 257 samples, row-major with row = z, and neighbouring tiles share edge samples. Height = `min + v / 65535 * (max - min)` from the manifest.
@@ -61,7 +63,7 @@ Without a query the app opens on the country menu (country → mountain → game
 - Rapier heightfields are column-major; `PhysicsWorld.addTerrainTile` transposes. Its test uses an asymmetric surface to catch mistakes.
 - Adding a mountain = a bake config + `src/data/mountains/<id>.json` + setting `mountainId` on its entry in `src/data/catalog.ts` (which lists every country and peak on the menu), with no engine changes. `public/terrain/` is generated and git-ignored.
 
-**Biomes:** a mountain's `biome` selects `GAME_CONFIG.biomes[id]`: the terrain palette (applied in `gridGeometry` in the mesh worker), sky and fog (`Environment`), and optional trees (`TreeSystem`, pure placement in `treePlacement.ts`, 3 × 3 tiles, no colliders). `?biome=<id>` overrides it for development.
+**Biomes:** a mountain's `biome` selects `GAME_CONFIG.biomes[id]`: the terrain palette (applied in `gridGeometry` in the mesh worker), sky and fog (`Environment`), and optional `vegetation` layers: `trees` (`TreeSystem`, pure placement in `treePlacement.ts`, tile ring, `minSlopeDeg` and an optional variant subset, no colliders) and `tea` (`TeaSystem`, 64 m cells within `radiusM` (190 m), contour rows from `teaPlacement.ts`). A slope palette may have contour `stripes`, which the map drops. `?biome=<id>` overrides it for development.
 
 **Tuning:** every gameplay number (speeds, slope thresholds, stamina rates, fall heights, camera, LOD) lives in `src/engine/config/game.config.ts`. Systems must read from it rather than hard-code values.
 

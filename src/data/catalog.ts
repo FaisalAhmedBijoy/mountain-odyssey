@@ -67,6 +67,15 @@ export const PEAKS: readonly PeakEntry[] = [
     approximate: true,
     note: SURVEYS_VARY,
   },
+  {
+    id: 'patharia',
+    name: 'Patharia Hills',
+    country: 'BD',
+    elevationM: 234,
+    approximate: true,
+    note: 'Sylhet · tea gardens',
+    mountainId: 'patharia',
+  },
 ];
 
 export function getCountry(code: CountryCode): Country {

@@ -162,3 +162,16 @@ The engine wiring (`Game`) creates one system per layer kind from `cfg.biomes[bi
 - The menu shows Patharia Hills with Climb.
 
 **Visual:** take headless screenshots of `?mountain=patharia`, close up and with the full map open.
+
+## 7. Bake results
+
+Read back from `public/terrain/patharia/manifest.json`.
+
+- Camps:
+  - Tea Estate: 40.2 m at x=3848, z=4120
+  - Madhabkunda: 112.3 m at x=-2200, z=4808
+  - Ridge Top: 233.9 m at x=446, z=1230
+- Routes (all below `routeMaxSlopeDeg` 33°):
+  - Tea Estate → Madhabkunda: 6,216 m, max slope 32.99°
+  - Madhabkunda → Ridge Top: 4,536 m, max slope 32.94°
+- Deviation: `TeaSystem` draws within `radiusM` 190 m, not the 250 m planned in §4.

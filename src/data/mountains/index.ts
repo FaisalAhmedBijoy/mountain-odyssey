@@ -2,6 +2,7 @@ import { isBiomeId, type BiomeId } from '../../engine/config/game.config';
 import meraPeak from './mera-peak.json';
 import testPeak from './test-peak.json';
 import keokradong from './keokradong.json';
+import patharia from './patharia.json';
 
 export interface MountainDef {
   id: string;
@@ -22,7 +23,7 @@ function parseMountain(raw: Omit<MountainDef, 'biome'> & { biome: string }): Mou
   return { ...raw, biome: raw.biome };
 }
 
-const MOUNTAINS: MountainDef[] = [meraPeak, testPeak, keokradong].map(parseMountain);
+const MOUNTAINS: MountainDef[] = [meraPeak, testPeak, keokradong, patharia].map(parseMountain);
 
 export function getMountain(id: string): MountainDef | null {
   return MOUNTAINS.find((m) => m.id === id) ?? null;

@@ -15,7 +15,7 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 - **Stamina and falls.** Running and climbing drain stamina, and if it runs out on a wall, you fall. A drop of 6–15 m injures you. A drop over 15 m sends you back to the last camp.
 - **Route guide.** An orange ribbon on the ground and trail flags mark the walkable route to the next camp, and a HUD arrow shows the distance. The route is computed when the terrain is baked, and it is guaranteed to stay walkable.
 - **Map.** A north-up minimap with your direction arrow, and a full map of the camps and route (Tab).
-- **Biomes.** Green forested hills with trees on Keokradong; snow and rock on Mera Peak.
+- **Biomes.** Green forested hills with trees on Keokradong; tea gardens with contour hedge rows on Patharia Hills; snow and rock on Mera Peak.
 - **Survival.** Oxygen, warmth and supplies that interact with stamina; rest at camps to acclimatize.
 - **Checkpoints.** Reaching a camp saves your progress, and after a fatal fall, a collapse from lack of oxygen or hypothermia you respawn there.
 - **Runs in the browser.** It needs a desktop browser with WebGL2 and nothing to install.
@@ -49,13 +49,14 @@ A free, browser-based, third-person mountaineering game. Climb terrain built fro
 
 ## Mountains
 
-The game opens on a country menu: pick Nepal, then Mera Peak, or Bangladesh, then Keokradong (other peaks show "Coming soon"). Press `Esc`, then "Choose another mountain", to go back to the menu.
+The game opens on a country menu: pick Nepal, then Mera Peak, or Bangladesh, then Keokradong or Patharia Hills (other peaks show "Coming soon"). Press `Esc`, then "Choose another mountain", to go back to the menu.
 
-| Mountain               | URL                                                                                                 | Notes                                                                                        |
-| ---------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Mera Peak, Nepal       | [`/?mountain=mera-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=mera-peak)   | Real DEM terrain. The route from Khare to High Camp is about 4.1 km.                         |
-| Keokradong, Bangladesh | [`/?mountain=keokradong`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=keokradong) | Green forested hills, about 986 m. The route runs Boga Lake, Camp 1, Camp 2, Summit on foot. |
-| Test Peak              | [`/?mountain=test-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=test-peak)   | A small synthetic mountain with an 8 m cliff ring, for practice and tests                    |
+| Mountain                   | URL                                                                                                 | Notes                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Mera Peak, Nepal           | [`/?mountain=mera-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=mera-peak)   | Real DEM terrain. The route from Khare to High Camp is about 4.1 km.                                                |
+| Keokradong, Bangladesh     | [`/?mountain=keokradong`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=keokradong) | Green forested hills, about 986 m. The route runs Boga Lake, Camp 1, Camp 2, Summit on foot.                        |
+| Patharia Hills, Bangladesh | [`/?mountain=patharia`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=patharia)     | Sylhet tea gardens with contour hedge rows, about 234 m. The route runs Tea Estate, Madhabkunda, Ridge Top on foot. |
+| Test Peak                  | [`/?mountain=test-peak`](https://faisalahmedbijoy.github.io/mountain-odyssey/?mountain=test-peak)   | A small synthetic mountain with an 8 m cliff ring, for practice and tests                                           |
 
 The menu also lists Island Peak, Everest, Kangchenjunga, Nanda Devi, Stok Kangri, and Saka Haphong as coming soon.
 
@@ -92,6 +93,7 @@ source .venv/bin/activate
 # Bake the terrain. The output goes to public/terrain/ and is not committed.
 npm run terrain:test   # small synthetic mountain, a few seconds
 npm run terrain:mera   # Mera Peak: downloads about 25 MB of Copernicus DEM data
+npm run terrain:patharia   # Patharia Hills (Sylhet): downloads Copernicus DEM data
 
 npm run dev            # http://localhost:5173 (add ?mountain=test-peak for the test mountain)
 ```

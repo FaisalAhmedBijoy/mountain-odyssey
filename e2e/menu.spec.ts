@@ -26,6 +26,9 @@ test('picks a country, then a mountain, then starts loading it', async ({ page }
   await expect(keo).toContainText('≈ 986 m');
   await expect(keo).toBeEnabled();
   await expect(keo).toContainText('Climb');
+  const patharia = page.getByRole('button', { name: /Patharia Hills/ });
+  await expect(patharia).toBeEnabled();
+  await expect(patharia).toContainText('Climb');
 
   await page.getByRole('button', { name: /Countries/ }).click();
   await page.getByRole('button', { name: /Nepal/ }).click();
@@ -53,6 +56,14 @@ test('loads a forested biome on the test peak', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?mountain=test-peak&biome=tropical-hills');
+  await expect(page.getByTestId('hud')).toBeVisible({ timeout: 45_000 });
+  expect(errors).toEqual([]);
+});
+
+test('loads the tea-garden biome on the test peak', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?mountain=test-peak&biome=tea-garden');
   await expect(page.getByTestId('hud')).toBeVisible({ timeout: 45_000 });
   expect(errors).toEqual([]);
 });

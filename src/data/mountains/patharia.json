@@ -1,0 +1,12 @@
+{
+  "id": "patharia",
+  "facts": {
+    "name": "Patharia Hills",
+    "country": "BD",
+    "elevationM": 234,
+    "location": { "lat": 24.629, "lon": 92.244 },
+    "sources": ["Copernicus GLO-30 DEM"]
+  },
+  "terrainBaseUrl": "terrain/patharia",
+  "biome": "tea-garden"
+}
