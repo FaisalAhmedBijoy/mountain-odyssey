@@ -12,6 +12,25 @@ export const GAME_CONFIG = {
     autostepMinWidthM: 0.2,
     feetNearGroundM: 0.15,
   },
+  /** Character look (visual realism spec §6, phase B). */
+  character: {
+    /** Brightness of each toon shading step, darkest first (0–1). Two steps = soft look. */
+    toonLevels: [0.62, 1],
+    outline: {
+      /** Half-thickness as a fraction of the viewport half-size. 0.003 is about 3 px at 1080p. */
+      width: 0.003,
+      /** Dark brown, not black. */
+      color: 0x3b2a20,
+    },
+    /** Clip names tried in order for each role. The first one the model has is used. */
+    clips: {
+      idle: ['Idle'],
+      walk: ['Walking', 'Walk'],
+      run: ['Running', 'Run'],
+      fall: ['Falling', 'Fall', 'Jump'],
+      climb: ['Climbing', 'Climb', 'Walking', 'Walk'],
+    },
+  },
   movement: {
     walkSpeed: 3,
     runSpeed: 6,
