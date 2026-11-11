@@ -117,6 +117,14 @@ export const GAME_CONFIG = {
     skirtDepthM: 20,
     /** Respawn when the feet drop this far below the lowest baked height. */
     outOfWorldDropM: 50,
+    /** Satellite imagery blend (visual realism spec §6). */
+    imagery: {
+      /** Share of the biome palette colour mixed over the image right at the camera (0–1). */
+      paletteMix: 0.4,
+      /** The palette share falls to 0 between these distances from the camera (m). */
+      fadeStartM: 120,
+      fadeEndM: 900,
+    },
   },
   world: { sunDirection: [0.4, 0.8, 0.3] },
   /** Per-mountain looks (Keokradong spec §3). Gameplay rules stay global. */

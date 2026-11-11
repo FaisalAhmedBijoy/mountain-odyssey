@@ -24,7 +24,8 @@ import {
   type MapBounds,
 } from '../world/mapMath';
 import { NO_GEAR } from '../world/surface';
-import { loadManifest, type CampDef, type TerrainManifest } from '../world/terrainData';
+import { imageryUrl, loadManifest, type CampDef, type TerrainManifest } from '../world/terrainData';
+import { createTerrainMaterial, loadImageryTexture } from '../world/terrainMaterial';
 import { TeaSystem } from '../world/TeaSystem';
 import { TerrainSampler } from '../world/TerrainSampler';
 import { isOutOfWorld } from '../world/worldBounds';
@@ -156,12 +157,16 @@ export class Game {
     const sampler = new TerrainSampler(manifest);
     const builder: MeshBuilder =
       o.useWorker === false ? new SyncMeshBuilder() : new WorkerMeshBuilder();
-    const material = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.95,
-      metalness: 0,
-      side: THREE.DoubleSide,
-    });
+    const imageUrl = imageryUrl(o.terrainBaseUrl, manifest);
+    let imagery: THREE.Texture | null = null;
+    if (imageUrl) {
+      try {
+        imagery = await loadImageryTexture(imageUrl, this.renderer.capabilities.getMaxAnisotropy());
+      } catch (err) {
+        console.warn('Terrain imagery failed to load; using the biome palette only.', err);
+      }
+    }
+    const material = createTerrainMaterial(imagery, cfg.terrain.imagery);
     const chunks = new ChunkManager({
       manifest,
       baseUrl: o.terrainBaseUrl,
@@ -179,6 +184,7 @@ export class Game {
       chunks.dispose();
       builder.dispose();
       material.dispose();
+      imagery?.dispose();
     });
 
     const trees: TreeSystem[] = [];
