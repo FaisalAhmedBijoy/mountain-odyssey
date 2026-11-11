@@ -71,3 +71,17 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] The route Tea Estate → Madhabkunda → Ridge Top is clear of hedges and trees.
 - [ ] The map shows the three stops.
 - [ ] FPS stays ≥ 30.
+
+## Visual realism
+
+- [ ] `/?mountain=test-peak`: the ground is green, whiter uphill, with an orange disc on the mound 512 m east and 512 m north of the centre (if the disc is south or west, the image is flipped).
+- [ ] `/?mountain=patharia`: far hills show satellite colours; ground near the player still shows palette detail (tea stripes, brown steep banks).
+- [ ] The character has flat two-tone shading and a thin dark-brown edge, still animates walking, running and falling, and the outline moves with the limbs (small gaps at the robot's sharp corners are expected).
+- [ ] The character stands left of the screen centre and the camera is closer than before; `C` cycles three distances.
+- [ ] Running (`Shift` + `W`) gives a small rhythmic bob that fades in and out smoothly.
+- [ ] Walking off the 8 m cliff band on test-peak (about 300 m from the summit) shakes the camera on landing; a step down of less than half a metre does not.
+- [ ] While paused (`Esc`) the view is perfectly still and the clouds stop.
+- [ ] Climbing still looks as before (side offset 0.8 m, extra distance).
+- [ ] On test-peak, Patharia, Keokradong and Mera Peak: the sky is bluer overhead and pale at the horizon, with no visible line where far terrain meets the sky.
+- [ ] White clouds sit above the highest ground, never touch terrain, drift slowly, and do not run out after a minute of walking.
+- [ ] Sunlit ground looks slightly warmer than before; shadows are still visible; frame rate is not visibly worse.

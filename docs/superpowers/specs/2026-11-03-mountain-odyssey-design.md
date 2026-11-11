@@ -246,6 +246,7 @@ All keys are rebindable in Settings.
 - Zoom range 2–8 m. Mouse orbit with a vertical clamp of −30° to +70°.
 - While climbing, the camera pulls back and to the side so the wall above is visible.
 - Summit cinematic: a scripted orbit when the summit checkpoint is reached.
+- *Note (2026-11-11, `docs/specs/specs/001-visual-realism.md`):* the default distance is now 3 m (steps 2.2 / 3 / 5 m) with a 0.55 m over-the-shoulder offset, plus a landing shake and a run bob (`GAME_CONFIG.camera.shake`).
 
 ---
 
@@ -336,6 +337,8 @@ Each engine system exposes a small public interface (`init`, `update(dt)`, `disp
 2. Rapier heightfield colliders exist only for the 3 × 3 chunks around the player.
 3. Chunks load and unload as the player moves; building happens off the main thread in a Web Worker.
 
+*Note (2026-11-11, `docs/specs/specs/001-visual-realism.md`):* a bake config may pin a Sentinel-2 L2A true-colour scene. The bake then writes `imagery.jpg` (graded, row 0 = north, covering the terrain square) and `"imagery"` in the manifest, and the terrain material draws it with the biome palette mixed in near the camera.
+
 ### 6.6 Mountain definition (data-driven content)
 
 Adding a mountain requires a JSON file and baked terrain, not code changes. Facts and gameplay settings are kept separate.
@@ -384,6 +387,8 @@ Camp `position` values are produced by the terrain pipeline (step 3) and written
 | Audio | CC0 (e.g. Freesound CC0 filter) | OGG/MP3 |
 
 Every asset and its licence is listed in `CREDITS.md`. Climbing hand placement uses procedural IK on top of base animations; no per-hold authoring is needed.
+
+*Note (2026-11-11, `docs/specs/specs/001-visual-realism.md`):* the character is toon-shaded with an outline in code, so any GLB gets the same look. The contract for the illustrated climber model is in that spec, task B3.
 
 ### 6.8 Persistence
 
@@ -605,6 +610,7 @@ Later candidates: cooperative rope climbing, rescue missions, seasonal weather, 
 | Terrain source | Copernicus GLO-30 DEM, baked offline | Global, free with attribution; no runtime GIS processing |
 | Persistence | Versioned `localStorage` | No backend required for v1.0 |
 | Backend | Deferred to Phase 2 | Not needed for single-player v1.0 |
+| Terrain imagery (2026-11-11) | Sentinel-2, baked offline | Google Earth imagery rejected (terms and runtime cost); Sentinel-2 baked offline instead |
 
 ---
 
