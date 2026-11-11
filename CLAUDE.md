@@ -57,6 +57,7 @@ Without a query the app opens on the country menu (country → mountain → game
 - `"summitName"` in a bake config renames the summit camp (default "Summit").
 - A bake config with `"summitWalkable": true` adds the summit to the walk check and routes, for mountains walked to the top.
 - The bake also writes `routes` (A* over the walkable grid, string-pulled, points ≤ 20 m apart, markers every 100 m and at turns) for each pair of consecutive camps. `RouteGuide` draws them as a ground ribbon (`T` toggles) plus flags, and `routeMath.ts` feeds the HUD arrow.
+- A bake config with an `"imagery"` block (a pinned Sentinel-2 TCI url) also writes `imagery.jpg` and `"imagery"` in the manifest: a square image over the terrain square, row 0 = north. Terrain meshes carry a uv from `mapBounds`, and `terrainMaterial.ts` mixes the biome palette over the image near the camera (`GAME_CONFIG.terrain.imagery`). `tools/terrain/find_imagery.py` lists candidate scenes.
 - Tiles are raw little-endian `uint16`, 257 × 257 samples, row-major with row = z, and neighbouring tiles share edge samples. Height = `min + v / 65535 * (max - min)` from the manifest.
 - World axes: x = east, z = south, y = up (real elevation in metres). Camera yaw 0 looks toward −Z (north).
 - Runtime: `ChunkManager` streams tiles around the player in LOD rings (`GAME_CONFIG.terrain.lodRings`), builds meshes off-thread (`meshBuilder.worker.ts`), keeps Rapier heightfield colliders only for the 3 × 3 tiles around the player, and redraws a low-res backdrop mesh with a hole where chunks are. `TerrainSampler` answers CPU height, normal and slope queries for gameplay and the camera.
@@ -70,6 +71,6 @@ Without a query the app opens on the country menu (country → mountain → game
 ## Project constraints
 
 - Assets must be CC0 (or Mixamo terms) and listed in `CREDITS.md`.
-- Show the DEM attribution verbatim: `Contains modified Copernicus DEM data`.
+- Show the DEM attribution verbatim: `Contains modified Copernicus DEM data`. With imagery, the manifest appends the Sentinel notice after `" · "`.
 - Keep `typescript@~5.9` (TypeScript 7 is not supported by typescript-eslint yet).
 - Out of scope until later phases: backend/accounts (Phase 2), mobile/touch, multiplayer. Check spec §2.2 before adding features.
