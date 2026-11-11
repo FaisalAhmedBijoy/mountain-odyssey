@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   decodeHeights,
   fetchWithRetry,
+  imageryUrl,
+  parseImagery,
   parseManifest,
   parseRoutes,
   tileKey,
@@ -96,5 +98,51 @@ describe('routes in the manifest', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     expect(parseRoutes({ nope: true }, new Set(['a']))).toEqual([]);
     warn.mockRestore();
+  });
+});
+
+describe('imagery in the manifest', () => {
+  const base = {
+    id: 't',
+    spacingM: 1,
+    tileSamples: 3,
+    tilesX: 1,
+    tilesZ: 1,
+    originX: 0,
+    originZ: 0,
+    minHeightM: 0,
+    maxHeightM: 1,
+    backdrop: { file: 'b', samples: 2, spacingM: 2 },
+    camps: [
+      { id: 'a', name: 'A', position: [0, 0, 0] },
+      { id: 'b', name: 'B', position: [0, 0, -100] },
+    ],
+  };
+
+  it('is undefined when absent', () => {
+    expect(parseImagery(undefined)).toBeUndefined();
+    expect(parseManifest(base).imagery).toBeUndefined();
+  });
+
+  it('keeps a valid entry', () => {
+    expect(parseImagery({ file: 'imagery.jpg', sizePx: 2048 })).toEqual({
+      file: 'imagery.jpg',
+      sizePx: 2048,
+    });
+  });
+
+  it('ignores malformed entries with a warning', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(parseImagery({ file: '../x.jpg', sizePx: 10 })).toBeUndefined();
+    expect(parseImagery({ file: 'a.jpg' })).toBeUndefined();
+    expect(parseImagery({ file: 'a.jpg', sizePx: 0 })).toBeUndefined();
+    expect(warn).toHaveBeenCalledTimes(3);
+    warn.mockRestore();
+  });
+
+  it('builds the image url only when there is imagery', () => {
+    const withImagery = parseManifest({ ...base, imagery: { file: 'imagery.jpg', sizePx: 256 } });
+    expect(imageryUrl('terrain/t', withImagery)).toBe('terrain/t/imagery.jpg');
+    expect(imageryUrl('terrain/t', parseManifest(base))).toBeNull();
   });
 });

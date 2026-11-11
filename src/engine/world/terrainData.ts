@@ -28,6 +28,7 @@ export interface TerrainManifest {
   camps: CampDef[];
   routes?: RouteDef[];
   attribution: string;
+  imagery?: { file: string; sizePx: number };
 }
 
 /** Heights in metres, row-major with row = z (south). */
@@ -109,8 +110,31 @@ export function parseManifest(json: unknown): TerrainManifest {
     throw new Error('Terrain manifest needs at least two camps');
   }
   const campIds = new Set(m.camps.map((c) => c.id));
-  return { attribution: '', ...m, routes: parseRoutes(m.routes, campIds) } as TerrainManifest;
+  return {
+    attribution: '',
+    ...m,
+    routes: parseRoutes(m.routes, campIds),
+    imagery: parseImagery(m.imagery),
+  } as TerrainManifest;
 }
+
+/** A valid imagery entry, or undefined (with a warning when one is present but malformed). */
+export function parseImagery(raw: unknown): TerrainManifest['imagery'] {
+  if (raw === undefined || raw === null) return undefined;
+  const r = raw as { file?: unknown; sizePx?: unknown };
+  const ok =
+    typeof r.file === 'string' &&
+    /^[\w.-]+$/.test(r.file) &&
+    typeof r.sizePx === 'number' &&
+    Number.isInteger(r.sizePx) &&
+    r.sizePx > 0;
+  if (ok) return { file: r.file as string, sizePx: r.sizePx as number };
+  console.warn('Terrain manifest "imagery" is malformed; ignoring it');
+  return undefined;
+}
+
+export const imageryUrl = (baseUrl: string, m: TerrainManifest): string | null =>
+  m.imagery ? `${baseUrl}/${m.imagery.file}` : null;
 
 export async function fetchWithRetry(
   url: string,

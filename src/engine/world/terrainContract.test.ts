@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from '../config/game.config';
@@ -63,5 +63,11 @@ describe('Python bake -> TerrainSampler axis contract', () => {
       routeMaxSlopeDeg?: number;
     };
     expect(raw.routeMaxSlopeDeg).toBe(GAME_CONFIG.movement.maxWalkSlopeDeg);
+  });
+
+  it('ships an imagery entry whose file exists', () => {
+    const { m } = loadFixture();
+    expect(m.imagery).toEqual({ file: 'imagery.jpg', sizePx: 256 });
+    expect(existsSync(`${dir}imagery.jpg`)).toBe(true);
   });
 });
