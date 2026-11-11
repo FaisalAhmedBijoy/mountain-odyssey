@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { landingTrauma } from '../camera/cameraShake';
 import { ThirdPersonCamera } from '../camera/ThirdPersonCamera';
 import { GAME_CONFIG as cfg, type BiomeId } from '../config/game.config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
@@ -287,6 +288,9 @@ export class Game {
 
   private wireEvents(): void {
     this.cleanup.push(
+      this.events.on('player:landed', ({ dropM }) =>
+        this.w?.cameraCtrl.addTrauma(landingTrauma(dropM, cfg.camera.shake)),
+      ),
       this.events.on('checkpoint:reached', ({ id, name }) => {
         this.showToast(`Checkpoint reached: ${name}`);
         this.o.publish({ lastCheckpoint: name });
@@ -420,7 +424,15 @@ export class Game {
       snap.moving && !w.survival.resting,
       this.loop.isPaused ? 0 : frameDt,
     );
-    w.cameraCtrl.update(feet, snap.state === 'climb', frameDt);
+    w.cameraCtrl.update(
+      feet,
+      {
+        climbing: snap.state === 'climb',
+        running: snap.state === 'run' && snap.moving,
+        paused: this.loop.isPaused,
+      },
+      frameDt,
+    );
     this.guideHud = w.guide.update(feet, w.cameraCtrl.yaw);
     this.environment.follow(feet);
     if (!this.respawning) w.chunks.update(feet.x, feet.z).catch((err: unknown) => this.fail(err));
