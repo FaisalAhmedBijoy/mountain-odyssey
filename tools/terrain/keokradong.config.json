@@ -19,6 +19,11 @@
   },
   "demUrl": "/vsicurl/https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N21_00_E092_00_DEM/Copernicus_DSM_COG_10_N21_00_E092_00_DEM.tif",
   "attribution": "Contains modified Copernicus DEM data",
+  "imagery": {
+    "url": "/vsicurl/https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/46/Q/DK/2024/3/S2B_46QDK_20240318_0_L2A/TCI.tif",
+    "sizePx": 2048,
+    "attribution": "Contains modified Copernicus Sentinel data 2024"
+  },
   "camps": [
     { "id": "boga-lake", "name": "Boga Lake", "targetElevationM": 400 },
     { "id": "camp-1", "name": "Camp 1", "targetElevationM": 580 },

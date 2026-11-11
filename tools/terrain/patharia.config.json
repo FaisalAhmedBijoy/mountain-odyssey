@@ -20,6 +20,11 @@
   },
   "demUrl": "/vsicurl/https://copernicus-dem-30m.s3.amazonaws.com/Copernicus_DSM_COG_10_N24_00_E092_00_DEM/Copernicus_DSM_COG_10_N24_00_E092_00_DEM.tif",
   "attribution": "Contains modified Copernicus DEM data",
+  "imagery": {
+    "url": "/vsicurl/https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/46/R/DN/2024/3/S2B_46RDN_20240311_0_L2A/TCI.tif",
+    "sizePx": 2048,
+    "attribution": "Contains modified Copernicus Sentinel data 2024"
+  },
   "camps": [
     { "id": "tea-estate", "name": "Tea Estate", "targetElevationM": 40 },
     { "id": "madhabkunda", "name": "Madhabkunda", "targetElevationM": 110 }
