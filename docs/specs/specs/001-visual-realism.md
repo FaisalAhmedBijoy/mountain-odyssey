@@ -1,7 +1,7 @@
 ---
 id: 001
 title: Visual realism — satellite terrain, illustrated climber, shoulder camera, painterly sky
-status: draft
+status: implemented
 date: 2026-11-11
 instruction: docs/specs/instructions/001-visual-realism.md
 ---
@@ -1635,23 +1635,23 @@ No new unit test in this task: the maths is tested in D1, and `Sky.ts` needs a r
 
 Automated (all must pass):
 
-- [ ] `PY -m pytest tools/terrain -q`
-- [ ] `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`
-- [ ] `npm run build`
-- [ ] `npm run e2e`, including the new "no shader errors" assertion
-- [ ] `VITE_BASE=/mountain-odyssey/ npm run build && npx vite preview --base /mountain-odyssey/` loads a mountain with imagery (checks `assetUrl` paths)
+- [x] `PY -m pytest tools/terrain -q`
+- [x] `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`
+- [x] `npm run build`
+- [x] `npm run e2e`, including the new "no shader errors" assertion
+- [x] `VITE_BASE=/mountain-odyssey/ npm run build && npx vite preview --base /mountain-odyssey/` loads a mountain with imagery (checks `assetUrl` paths)
 
 Behaviour:
 
-- [ ] A manifest without `imagery` renders as before this work (delete `"imagery"` from a local `public/terrain/test-peak/manifest.json` and reload to check).
-- [ ] A missing `imagery.jpg` (rename the file locally) logs one warning and the game still loads with palette colours.
-- [ ] On test-peak the orange marker is on the mound, north-east of the centre.
-- [ ] On Patharia, Keokradong and Mera Peak, distant terrain shows satellite colours; ground within about 100 m still shows palette detail.
-- [ ] The HUD credit line shows `Contains modified Copernicus DEM data · Contains modified Copernicus Sentinel data <year>` on real mountains and `Synthetic test terrain` on test-peak.
-- [ ] The character has toon shading and a dark-brown outline that follows the animation.
-- [ ] The camera is over the shoulder, shakes on a landing above 0.6 m, bobs while running, and is still while paused.
-- [ ] The sky has a gradient and drifting clouds on every mountain.
-- [ ] No gameplay value changed: `git diff main -- src/engine/config/game.config.ts` shows changes only in `camera`, `terrain.imagery`, `character`, `world`, and the `zenithColor` lines of `biomes`.
+- [x] A manifest without `imagery` renders as before this work (delete `"imagery"` from a local `public/terrain/test-peak/manifest.json` and reload to check).
+- [x] A missing `imagery.jpg` (rename the file locally) logs one warning and the game still loads with palette colours.
+- [ ] On test-peak the orange marker is on the mound, north-east of the centre. (Checked in the baked image and by the uv tests; the in-game view needs pointer lock, so it is left to the playtest checklist.)
+- [x] On Patharia, Keokradong and Mera Peak, distant terrain shows satellite colours; ground within about 100 m still shows palette detail.
+- [x] The HUD credit line shows `Contains modified Copernicus DEM data · Contains modified Copernicus Sentinel data <year>` on real mountains and `Synthetic test terrain` on test-peak.
+- [x] The character has toon shading and a dark-brown outline that follows the animation.
+- [ ] The camera is over the shoulder, shakes on a landing above 0.6 m, bobs while running, and is still while paused. (Shoulder view checked; shake and bob need pointer lock and are left to the playtest checklist.)
+- [ ] The sky has a gradient and drifting clouds on every mountain. (Seen on test-peak and Patharia; the rest is in the playtest checklist.)
+- [x] No gameplay value changed: `git diff main -- src/engine/config/game.config.ts` shows changes only in `camera`, `terrain.imagery`, `character`, `world`, and the `zenithColor` lines of `biomes`.
 
 ## 8. Deploy notes
 
