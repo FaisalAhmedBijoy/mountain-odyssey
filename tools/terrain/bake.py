@@ -21,11 +21,15 @@ from terrain_lib import (
     detail_noise,
     engine_heights,
     find_summit,
+    grade_imagery,
+    imagery_empty_fraction,
     latlon_bounds,
     place_camps,
+    resample_rgb_to_metric,
     resample_to_metric,
     route_max_slope,
     synthetic_heightmap,
+    synthetic_imagery,
     upsample,
     validate_camps,
     walkable_map,
@@ -66,7 +70,7 @@ def synthetic_terrain(spec: GridSpec) -> tuple[np.ndarray, list[tuple[str, str, 
 
 
 def bake_synthetic(out: str, spec: GridSpec = TEST_PEAK_SPEC, backdrop_spacing_m: float = 64.0,
-                   validate: bool = True) -> dict:
+                   validate: bool = True, imagery_size_px: int = 256) -> dict:
     h, camp_cells = synthetic_terrain(spec)
     slope_limit = CAMP_PLACEMENT_DEFAULTS["maxWalkSlopeDeg"]
     wm = walkable_map(h, spec.spacing_m, slope_limit, CAMP_PLACEMENT_DEFAULTS["analysisSpacingM"])
@@ -85,7 +89,8 @@ def bake_synthetic(out: str, spec: GridSpec = TEST_PEAK_SPEC, backdrop_spacing_m
     ]
     return write_terrain(out, "test-peak", h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
                          "Synthetic test terrain", backdrop_spacing_m=backdrop_spacing_m, routes=routes,
-                         route_max_slope_deg=route_limit)
+                         route_max_slope_deg=route_limit,
+                         imagery=synthetic_imagery(h, spec.spacing_m, spec.origin, imagery_size_px))
 
 
 def check_dem_coverage(requested: tuple[float, float, float, float],
@@ -126,6 +131,61 @@ def load_dem(url: str, spec: GridSpec):
     east_c = west_c + (dem.shape[1] - 1) * t.a
     south_c = north_c + (dem.shape[0] - 1) * t.e
     return dem, (west_c, south_c, east_c, north_c)
+
+
+def load_imagery(url: str, spec: GridSpec):
+    """Read the true-colour window for the grid from a Sentinel-2 TCI GeoTIFF (UTM), warped to
+    lat/lon. Returns (rgb rows x cols x 3 uint8, bounds of its outer pixel centres)."""
+    import rasterio
+    from rasterio.enums import Resampling
+    from rasterio.vrt import WarpedVRT
+    from rasterio.windows import from_bounds
+
+    west, south, east, north = latlon_bounds(spec)
+    with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR", AWS_NO_SIGN_REQUEST="YES"):
+        with rasterio.open(url) as src:
+            with WarpedVRT(src, crs="EPSG:4326", resampling=Resampling.bilinear) as vrt:
+                b = vrt.bounds
+                if not (west >= b.left and south >= b.bottom and east <= b.right and north <= b.top):
+                    raise ValueError(
+                        f"Imagery window W {west:.4f} S {south:.4f} E {east:.4f} N {north:.4f} is not inside "
+                        f"the scene, which covers W {b.left:.4f} S {b.bottom:.4f} E {b.right:.4f} N {b.top:.4f}. "
+                        "Pick another scene with tools/terrain/find_imagery.py."
+                    )
+                window = from_bounds(west, south, east, north, transform=vrt.transform)
+                window = window.round_offsets().round_lengths()
+                data = vrt.read([1, 2, 3], window=window)
+                t = vrt.window_transform(window)
+    rgb = np.moveaxis(data, 0, -1)
+    west_c = t.c + t.a / 2
+    north_c = t.f + t.e / 2
+    east_c = west_c + (rgb.shape[1] - 1) * t.a
+    south_c = north_c + (rgb.shape[0] - 1) * t.e
+    return rgb, (west_c, south_c, east_c, north_c)
+
+
+IMAGERY_MAX_EMPTY_FRACTION = 0.005
+
+
+def bake_imagery(cfg: dict, spec: GridSpec) -> tuple[np.ndarray | None, str]:
+    """(graded image or None, attribution to append or "") for a bake config."""
+    block = cfg.get("imagery")
+    if block is None:
+        return None, ""
+    for key in ("url", "attribution"):
+        if not isinstance(block.get(key), str) or not block[key]:
+            raise ValueError(f"imagery.{key} must be a non-empty string")
+    size_px = int(block.get("sizePx", 2048))
+    print(f"Reading imagery window for {cfg['id']} ...", flush=True)
+    rgb, bounds = load_imagery(block["url"], spec)
+    empty = imagery_empty_fraction(rgb)
+    if empty > IMAGERY_MAX_EMPTY_FRACTION:
+        raise ValueError(
+            f"Imagery scene leaves {empty:.1%} of the window empty. "
+            "Pick another scene with tools/terrain/find_imagery.py."
+        )
+    out = resample_rgb_to_metric(rgb, bounds, spec, size_px)
+    return grade_imagery(out, **block.get("grade", {})), block["attribution"]
 
 
 def walk_targets(camp_cfgs: list[dict], cells: list[tuple[int, int]], summit: tuple[int, int],
@@ -193,9 +253,11 @@ def bake_dem(config_path: str, out: str) -> dict:
         for c, rc in zip(cfg["camps"], cells)
     ]
     camps.append({"id": "summit", "name": summit_name(cfg), "position": cell_to_world(summit, spec.origin, spec.spacing_m, h)})
+    imagery, imagery_attribution = bake_imagery(cfg, spec)
+    attribution = cfg["attribution"] + (f" · {imagery_attribution}" if imagery_attribution else "")
     return write_terrain(out, cfg["id"], h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
-                         cfg["attribution"], cfg["backdropSpacingM"], routes=routes,
-                         route_max_slope_deg=route_limit)
+                         attribution, cfg["backdropSpacingM"], routes=routes,
+                         route_max_slope_deg=route_limit, imagery=imagery)
 
 
 def main(argv: list[str]) -> int:

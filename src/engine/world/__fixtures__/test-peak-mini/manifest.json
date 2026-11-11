@@ -84,5 +84,9 @@
       ]
     }
   ],
-  "routeMaxSlopeDeg": 33.0
+  "routeMaxSlopeDeg": 33.0,
+  "imagery": {
+    "file": "imagery.jpg",
+    "sizePx": 256
+  }
 }

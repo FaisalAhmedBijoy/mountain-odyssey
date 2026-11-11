@@ -836,3 +836,33 @@ def test_synthetic_summit_walk_gets_a_route_ending_at_the_summit():
     sx, _, sz = cell_to_world(summit, spec.origin, spec.spacing_m, h)
     assert route["points"][-1][0] == pytest.approx(sx, abs=0.1)
     assert route["points"][-1][2] == pytest.approx(sz, abs=0.1)
+
+
+def test_bake_synthetic_writes_imagery(tmp_path):
+    from bake import bake_synthetic
+
+    spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=16, spacing_m=64.0)
+    manifest = bake_synthetic(str(tmp_path), spec, backdrop_spacing_m=128.0, validate=False)
+    assert manifest["imagery"] == {"file": "imagery.jpg", "sizePx": 256}
+    path = tmp_path / "imagery.jpg"
+    assert path.exists()
+    img = np.asarray(Image.open(path).convert("RGB"))
+    col = int((512 - spec.origin) / spec.size_m * 256)
+    row = int((-512 - spec.origin) / spec.size_m * 256)
+    r, _, b = img[row, col].astype(int)
+    assert r > 180 and b < 110
+
+
+def test_bake_imagery_is_optional():
+    from bake import bake_imagery
+
+    spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=16, spacing_m=64.0)
+    assert bake_imagery({"id": "x"}, spec) == (None, "")
+
+
+def test_bake_imagery_rejects_a_block_without_url():
+    from bake import bake_imagery
+
+    spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=16, spacing_m=64.0)
+    with pytest.raises(ValueError, match="imagery.url"):
+        bake_imagery({"id": "x", "imagery": {"attribution": "a"}}, spec)
