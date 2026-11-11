@@ -6,5 +6,6 @@ export type RespawnCause = 'fall' | DeathCause;
 export type GameEvents = {
   'checkpoint:reached': { id: string; name: string };
   'player:fell': { dropM: number; outcome: FallOutcome };
+  'player:landed': { dropM: number };
   'player:respawned': { checkpointId: string; checkpointName: string; cause: RespawnCause };
 };

@@ -52,6 +52,8 @@ async function setup(
   const events = new EventBus<GameEvents>();
   const fell: GameEvents['player:fell'][] = [];
   events.on('player:fell', (e) => fell.push(e));
+  const landed: GameEvents['player:landed'][] = [];
+  events.on('player:landed', (e) => landed.push(e));
   const player = new Player(physics, sampler, events, spawn, NO_GEAR);
   physics.step(DT);
   player.afterPhysics();
@@ -63,7 +65,7 @@ async function setup(
       player.afterPhysics();
     }
   };
-  return { player, run, fell };
+  return { player, run, fell, landed };
 }
 
 describe('Player', () => {
@@ -119,6 +121,14 @@ describe('Player', () => {
     expect(fell[0]!.dropM).toBeGreaterThan(6);
     expect(fell[0]!.dropM).toBeLessThan(9);
     expect(player.snapshot.stamina.cap).toBe(70);
+  });
+
+  it('emits player:landed with the drop height after the 8 m cliff', async () => {
+    const { run, landed } = await setup({ x: 0, y: 108.05, z: -14 });
+    run({}, 10);
+    run({ forward: -1 }, 240);
+    expect(landed.length).toBeGreaterThanOrEqual(1);
+    expect(Math.max(...landed.map((e) => e.dropM))).toBeGreaterThan(GAME_CONFIG.fall.injuryHeightM);
   });
 
   describe('grabbing a wall mid-fall', () => {

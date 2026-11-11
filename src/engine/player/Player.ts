@@ -398,6 +398,7 @@ export class Player {
   private land(centerY: number): void {
     this.fallArmed = false;
     const dropM = this.fallPeakY - centerY;
+    this.events.emit('player:landed', { dropM });
     const outcome = classifyFall(dropM, cfg.fall);
     if (outcome === 'injury') {
       this.stamina = applyInjury(this.stamina, cfg.fall.injuryCapPenalty, cfg.stamina);
