@@ -1,4 +1,5 @@
 import { linearPalette, terrainColor, withoutStripes, type TerrainPalette } from './palette';
+import type { MapBounds } from './mapMath';
 import type { SurfaceRules } from './surface';
 
 export interface GridGeometryArgs {
@@ -14,6 +15,8 @@ export interface GridGeometryArgs {
   /** Plain data: this object is structured-cloned into the mesh worker. */
   palette: TerrainPalette;
   hole?: { minX: number; minZ: number; maxX: number; maxZ: number };
+  /** World rectangle of the terrain image. When set, a uv per vertex is written. */
+  uv?: MapBounds;
 }
 
 export interface GridGeometryData {
@@ -21,6 +24,7 @@ export interface GridGeometryData {
   normals: Float32Array;
   colors: Float32Array;
   indices: Uint32Array;
+  uvs?: Float32Array;
 }
 
 /** Deterministic 0–1 hash for subtle per-vertex colour variation. */
@@ -47,6 +51,7 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
   const positions = new Float32Array(vertexCount * 3);
   const normals = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
+  const uvs = a.uv ? new Float32Array(vertexCount * 2) : undefined;
 
   const sample = (sx: number, sz: number): number => {
     const cx = sx < 0 ? 0 : sx >= samplesX ? samplesX - 1 : sx;
@@ -79,6 +84,10 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
     colors[o] = c[0] * shade;
     colors[o + 1] = c[1] * shade;
     colors[o + 2] = c[2] * shade;
+    if (uvs && a.uv) {
+      uvs[v * 2] = (x - a.uv.minX) / a.uv.sizeX;
+      uvs[v * 2 + 1] = (z - a.uv.minZ) / a.uv.sizeZ;
+    }
   };
 
   for (let iz = 0; iz < nz; iz++) {
@@ -149,5 +158,5 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
     }
   }
 
-  return { positions, normals, colors, indices: indices.slice(0, k) };
+  return { positions, normals, colors, indices: indices.slice(0, k), ...(uvs ? { uvs } : {}) };
 }

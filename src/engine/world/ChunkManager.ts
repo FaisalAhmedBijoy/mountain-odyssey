@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { GridGeometryData } from './gridGeometry';
+import { mapBounds } from './mapMath';
 import type { MeshBuilder } from './meshBuilder';
 import type { TerrainPalette } from './palette';
 import type { SurfaceRules } from './surface';
@@ -202,6 +203,7 @@ export class ChunkManager {
           skirtDepthM: this.d.skirtDepthM,
           surface: this.d.surface,
           palette: this.d.palette,
+          uv: mapBounds(m),
         });
         if (this.disposed) return;
         this.removeMesh(key);
@@ -236,6 +238,7 @@ export class ChunkManager {
       surface: this.d.surface,
       palette: this.d.palette,
       hole,
+      uv: mapBounds(m),
     });
     if (this.disposed) return;
     this.removeBackdropMesh();
@@ -247,6 +250,7 @@ export class ChunkManager {
     geometry.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
     geometry.setAttribute('normal', new THREE.BufferAttribute(data.normals, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
+    if (data.uvs) geometry.setAttribute('uv', new THREE.BufferAttribute(data.uvs, 2));
     geometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
     geometry.computeBoundingSphere();
     const mesh = new THREE.Mesh(geometry, this.d.material);

@@ -103,6 +103,9 @@ describe('ChunkManager', () => {
     expect(centre.geometry.getAttribute('position').count).toBe(25 + 20);
     const corner = group.getObjectByName('terrain-0_0') as THREE.Mesh;
     expect(corner.geometry.getAttribute('position').count).toBe(9 + 12);
+    expect(centre.geometry.getAttribute('uv').count).toBe(25 + 20);
+    const backdrop = group.getObjectByName('terrain-backdrop') as THREE.Mesh;
+    expect(backdrop.geometry.getAttribute('uv')).toBeDefined();
   });
 
   it('unloads chunks that leave the area', async () => {

@@ -122,3 +122,27 @@ describe('buildGridGeometry stripes', () => {
     expect(Array.from(a.colors)).toEqual(Array.from(b.colors));
   });
 });
+
+describe('buildGridGeometry uv', () => {
+  const uv = { minX: 100, minZ: 200, sizeX: 8, sizeZ: 8 };
+  const uvAt = (uvs: Float32Array, v: number) => [uvs[v * 2], uvs[v * 2 + 1]];
+
+  it('writes no uv without bounds', () => {
+    expect(buildGridGeometry(args()).uvs).toBeUndefined();
+  });
+
+  it('maps the grid corners to the corners of the image', () => {
+    const g = buildGridGeometry(args({ uv }));
+    const uvs = g.uvs!;
+    expect(uvs.length).toBe((g.positions.length / 3) * 2);
+    expect(uvAt(uvs, 0)).toEqual([0, 0]);
+    expect(uvAt(uvs, 4)).toEqual([1, 0]);
+    expect(uvAt(uvs, 20)).toEqual([0, 1]);
+    expect(uvAt(uvs, 24)).toEqual([1, 1]);
+  });
+
+  it('gives skirt vertices the uv of the edge vertex above them', () => {
+    const g = buildGridGeometry(args({ uv }));
+    expect(uvAt(g.uvs!, 25)).toEqual([0, 0]);
+  });
+});
