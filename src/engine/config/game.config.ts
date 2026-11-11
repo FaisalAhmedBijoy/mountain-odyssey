@@ -114,8 +114,8 @@ export const GAME_CONFIG = {
     far: 8000,
     minDistance: 2,
     maxDistance: 8,
-    defaultDistance: 5,
-    distanceSteps: [3, 5, 8],
+    defaultDistance: 3,
+    distanceSteps: [2.2, 3, 5],
     minPitchDeg: -30,
     maxPitchDeg: 70,
     defaultPitchDeg: 15,
@@ -125,6 +125,26 @@ export const GAME_CONFIG = {
     collisionPaddingM: 0.4,
     climbExtraDistance: 1.5,
     climbSideOffset: 0.8,
+    /** Look-target shift to the player's right while not climbing (m). Puts the character left of centre. */
+    shoulderOffsetM: 0.55,
+    shake: {
+      enabled: true,
+      /** Trauma (0–1) lost per second. */
+      decayPerSec: 1.6,
+      frequencyHz: 9,
+      maxPitchDeg: 2.2,
+      maxYawDeg: 1.6,
+      maxRollDeg: 2.5,
+      /** Landing drops below this add no trauma; at landFullDropM they add landMaxTrauma. */
+      landMinDropM: 0.6,
+      landFullDropM: 6,
+      landMaxTrauma: 0.9,
+      /** Run bob: steps per second, vertical amplitude (m), roll amplitude (deg), blend speed. */
+      runBobHz: 2.6,
+      runBobHeightM: 0.035,
+      runBobRollDeg: 0.35,
+      runBobSharpness: 8,
+    },
   },
   terrain: {
     lodRings: [
