@@ -708,6 +708,77 @@ def synthetic_heightmap(samples: int, spacing_m: float) -> np.ndarray:
     return (5000.0 + cone + cliff + mound).astype(np.float32)
 
 
+def resample_rgb_to_metric(
+    rgb: np.ndarray,
+    src_bounds: tuple[float, float, float, float],
+    spec: GridSpec,
+    size_px: int,
+) -> np.ndarray:
+    """Resample a lat/lon RGB image (rows x cols x 3, row 0 = north) onto a square image
+    covering the terrain grid. src_bounds are the (west, south, east, north) coordinates of
+    the source's outer pixel centres. Output is (size_px, size_px, 3) float32 in 0..255.
+    Output pixel (r, c) is centred at x = origin + (c + 0.5) * size_m / size_px (z likewise)."""
+    west, south, east, north = src_bounds
+    offsets = spec.origin + (np.arange(size_px) + 0.5) * (spec.size_m / size_px)
+    lat = spec.center_lat - offsets / M_PER_DEG_LAT
+    lon = spec.center_lon + offsets / m_per_deg_lon(spec.center_lat)
+    rows = (north - lat) / (north - south) * (rgb.shape[0] - 1)
+    cols = (lon - west) / (east - west) * (rgb.shape[1] - 1)
+    rr, cc = np.meshgrid(rows, cols, indexing="ij")
+    return np.stack([bilinear_sample(rgb[:, :, k], rr, cc) for k in range(3)], axis=-1).astype(np.float32)
+
+
+_LUMA = np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+
+
+def grade_imagery(
+    rgb: np.ndarray,
+    *,
+    low_pct: float = 1.0,
+    high_pct: float = 97.0,
+    max_gain: float = 3.0,
+    gamma: float = 0.65,
+    saturation: float = 1.2,
+) -> np.ndarray:
+    """Brighten and enrich a satellite image for use as a terrain colour. Returns uint8.
+    1. Stretch so the low_pct luminance -> 0 and the high_pct luminance -> 1 (the same
+       offset and scale for all channels, so the order of the channels is kept). The
+       stretch never exceeds max_gain.
+    2. gamma < 1 lifts dark tones (softens baked-in shadows).
+    3. saturation > 1 pushes colours away from grey."""
+    x = np.asarray(rgb, dtype=np.float32) / 255.0
+    luma = x @ _LUMA
+    lo, hi = (float(v) for v in np.percentile(luma, [low_pct, high_pct]))
+    hi = max(hi, lo + 1.0 / max_gain)
+    x = np.clip((x - lo) / (hi - lo), 0.0, 1.0) ** gamma
+    grey = (x @ _LUMA)[..., None]
+    x = np.clip(grey + (x - grey) * saturation, 0.0, 1.0)
+    return (x * 255.0 + 0.5).astype(np.uint8)
+
+
+def imagery_empty_fraction(rgb: np.ndarray) -> float:
+    """Fraction of pixels that are exactly (0, 0, 0): the nodata value of Sentinel-2 TCI."""
+    return float((np.asarray(rgb).sum(axis=-1) == 0).mean())
+
+
+def synthetic_imagery(h: np.ndarray, spacing_m: float, origin_m: float, size_px: int = 256) -> np.ndarray:
+    """Test image for the synthetic test-peak: green low ground blending to white high ground,
+    with an orange disc of radius 60 m at world (x = +512, z = -512), where the heightmap
+    has its mound. The disc makes axis mix-ups visible. Returns (size_px, size_px, 3) uint8."""
+    n = h.shape[0]
+    size_m = (n - 1) * spacing_m
+    centres = origin_m + (np.arange(size_px) + 0.5) * (size_m / size_px)
+    x, z = np.meshgrid(centres, centres)  # x varies along columns, z along rows
+    idx = np.clip(np.rint((centres - origin_m) / spacing_m).astype(int), 0, n - 1)
+    height = h[np.ix_(idx, idx)].astype(np.float64)
+    t = np.clip((height - height.min()) / max(float(height.max() - height.min()), 1e-6), 0.0, 1.0)[..., None]
+    low = np.array([96.0, 140.0, 72.0])
+    high = np.array([236.0, 240.0, 244.0])
+    rgb = low + (high - low) * t
+    rgb[(x - 512.0) ** 2 + (z + 512.0) ** 2 < 60.0**2] = (230.0, 120.0, 30.0)
+    return (rgb + 0.5).astype(np.uint8)
+
+
 def write_terrain(
     out_dir: str | Path,
     mountain_id: str,
@@ -720,6 +791,7 @@ def write_terrain(
     backdrop_spacing_m: float,
     routes: list[dict] | None = None,
     route_max_slope_deg: float | None = None,
+    imagery: np.ndarray | None = None,
 ) -> dict:
     out = Path(out_dir)
     tiles_dir = out / "tiles"
@@ -751,6 +823,14 @@ def write_terrain(
         manifest["routes"] = routes
     if route_max_slope_deg is not None:
         manifest["routeMaxSlopeDeg"] = route_max_slope_deg
+    if imagery is not None:
+        if imagery.ndim != 3 or imagery.shape[0] != imagery.shape[1] or imagery.shape[2] != 3:
+            raise ValueError(f"imagery must be a square RGB array, got shape {imagery.shape}")
+        # No mode argument: Pillow infers RGB from a (rows, cols, 3) uint8 array.
+        Image.fromarray(np.ascontiguousarray(imagery, dtype=np.uint8)).save(
+            out / "imagery.jpg", quality=85, optimize=True
+        )
+        manifest["imagery"] = {"file": "imagery.jpg", "sizePx": int(imagery.shape[0])}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 

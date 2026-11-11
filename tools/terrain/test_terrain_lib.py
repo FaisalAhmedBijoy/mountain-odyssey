@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from PIL import Image
 
 from terrain_lib import (
     GridSpec,
@@ -18,10 +19,13 @@ from terrain_lib import (
     downsample,
     find_route,
     find_summit,
+    grade_imagery,
+    imagery_empty_fraction,
     label_components,
     latlon_bounds,
     place_camps,
     quantize,
+    resample_rgb_to_metric,
     resample_to_metric,
     route_length,
     route_markers,
@@ -32,6 +36,7 @@ from terrain_lib import (
     split_tiles,
     string_pull,
     synthetic_heightmap,
+    synthetic_imagery,
     upsample,
     validate_camps,
     walkable_map,
@@ -302,6 +307,79 @@ def test_written_tile_decodes_back_to_heights(tmp_path):
     np.testing.assert_allclose(decode(tmp_path / "tiles" / "1_0.u16"), h[0:5, 4:9], atol=tol)
     # backdrop is every 2nd sample of the 9x9 grid
     np.testing.assert_allclose(decode(tmp_path / "backdrop.u16"), h[::2, ::2], atol=tol)
+
+
+
+def test_resample_rgb_keeps_north_up_and_east_right():
+    spec = GridSpec(10.0, 20.0, tiles=1, tile_cells=100, spacing_m=10.0)
+    r, c = np.mgrid[0:50, 0:50]
+    src = np.zeros((50, 50, 3), dtype=np.float32)
+    src[:, :, 0] = c * 5
+    src[:, :, 1] = r * 5
+    out = resample_rgb_to_metric(src, latlon_bounds(spec, margin_m=0.0), spec, 10)
+    assert out.shape == (10, 10, 3)
+    assert out[5, 0, 0] < out[5, 9, 0]
+    assert out[0, 5, 1] < out[9, 5, 1]
+
+
+def test_grade_imagery_brightens_and_keeps_channel_order():
+    ramp = 0.5 + 1.5 * np.arange(64) / 63
+    img = (np.array([40.0, 60.0, 30.0])[None, None, :] * ramp[None, :, None]).repeat(64, axis=0)
+    img = img.astype(np.uint8)
+    out = grade_imagery(img)
+    assert out.dtype == np.uint8
+    assert out.mean() > img.mean()
+    g = out[32, 32].astype(int)
+    assert g[1] > g[0] > g[2]
+
+
+def test_grade_imagery_limits_gain():
+    out = grade_imagery(np.full((8, 8, 3), 10, dtype=np.uint8))
+    assert (out < 128).all()
+
+
+def test_imagery_empty_fraction():
+    img = np.zeros((10, 10, 3), dtype=np.uint8)
+    img.reshape(-1, 3)[:25] = (1, 0, 0)
+    assert imagery_empty_fraction(img) == pytest.approx(0.75)
+
+
+def test_synthetic_imagery_marks_the_mound_north_east():
+    spec = GridSpec(0.0, 0.0, tiles=4, tile_cells=256, spacing_m=2.0)
+    h = synthetic_heightmap(spec.samples, spec.spacing_m)
+    img = synthetic_imagery(h, spec.spacing_m, spec.origin, 256)
+
+    def px(x, z):
+        col = int((x - spec.origin) / spec.size_m * 256)
+        row = int((z - spec.origin) / spec.size_m * 256)
+        return img[row, col].astype(int)
+
+    marker = px(512, -512)
+    assert marker[0] > 200 and marker[2] < 80
+    for x, z in [(-512, -512), (512, 512), (-512, 512)]:
+        assert px(x, z)[2] > 60
+
+
+def test_write_terrain_writes_imagery_and_manifest_entry(tmp_path):
+    spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=4, spacing_m=2.0)
+    h = np.linspace(100, 200, spec.samples**2, dtype=np.float32).reshape(spec.samples, spec.samples)
+    camps = [
+        {"id": "a", "name": "A", "position": [0.0, 100.0, 0.0]},
+        {"id": "b", "name": "B", "position": [1.0, 150.0, 1.0]},
+    ]
+    args = (h, spec.spacing_m, spec.tile_cells, spec.origin, camps, "Test")
+    manifest = write_terrain(
+        tmp_path / "with",
+        "demo",
+        *args,
+        backdrop_spacing_m=4.0,
+        imagery=np.full((64, 64, 3), 128, dtype=np.uint8),
+    )
+    assert manifest["imagery"] == {"file": "imagery.jpg", "sizePx": 64}
+    assert (tmp_path / "with" / "imagery.jpg").exists()
+    assert Image.open(tmp_path / "with" / "imagery.jpg").size == (64, 64)
+    plain = write_terrain(tmp_path / "without", "demo", *args, backdrop_spacing_m=4.0)
+    assert "imagery" not in plain
 
 
 FIXTURE_DIR = Path(__file__).resolve().parents[2] / "src/engine/world/__fixtures__/test-peak-mini"
