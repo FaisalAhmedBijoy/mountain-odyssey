@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GAME_CONFIG } from '../config/game.config';
 import type { Vec3 } from '../core/math';
 import type { MoveState } from './movementState';
-
-const CLIPS = { idle: 'Idle', walk: 'Walking', run: 'Running', fall: 'Jump', climb: 'Walking' };
+import { applyToonLook } from './toonLook';
+import { resolveClips, type ClipRole } from './toonMath';
 
 /** Character model and animation. Falls back to a capsule if the model fails to load. */
 export class PlayerVisual {
@@ -11,6 +12,14 @@ export class PlayerVisual {
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private current: THREE.AnimationAction | null = null;
   private yaw = 0;
+  private clips: Record<ClipRole, string | null> = {
+    idle: null,
+    walk: null,
+    run: null,
+    fall: null,
+    climb: null,
+  };
+  private disposeLook: (() => void) | null = null;
 
   private constructor(private readonly root: THREE.Group) {}
 
@@ -28,10 +37,15 @@ export class PlayerVisual {
       model.traverse((o) => {
         if ((o as THREE.Mesh).isMesh) o.castShadow = true;
       });
+      visual.disposeLook = applyToonLook(model, GAME_CONFIG.character);
       root.add(model);
       visual.mixer = new THREE.AnimationMixer(model);
       for (const clip of gltf.animations)
         visual.actions.set(clip.name, visual.mixer.clipAction(clip));
+      visual.clips = resolveClips(
+        gltf.animations.map((c) => c.name),
+        GAME_CONFIG.character.clips,
+      );
     } catch (err) {
       console.warn('Character model failed to load; using a capsule instead.', err);
       const capsule = new THREE.Mesh(
@@ -56,17 +70,19 @@ export class PlayerVisual {
 
   dispose(): void {
     this.mixer?.stopAllAction();
+    this.disposeLook?.();
     this.root.removeFromParent();
   }
 
-  private clipFor(state: MoveState, moving: boolean): string {
-    if (state === 'fall' || state === 'slide') return CLIPS.fall;
-    if (state === 'climb') return moving ? CLIPS.climb : CLIPS.idle;
-    if (!moving) return CLIPS.idle;
-    return state === 'run' ? CLIPS.run : CLIPS.walk;
+  private clipFor(state: MoveState, moving: boolean): string | null {
+    if (state === 'fall' || state === 'slide') return this.clips.fall;
+    if (state === 'climb') return moving ? this.clips.climb : this.clips.idle;
+    if (!moving) return this.clips.idle;
+    return state === 'run' ? this.clips.run : this.clips.walk;
   }
 
-  private play(name: string): void {
+  private play(name: string | null): void {
+    if (name === null) return;
     const next = this.actions.get(name);
     if (!next || next === this.current) return;
     next.reset().fadeIn(0.2).play();
