@@ -165,12 +165,43 @@ export const GAME_CONFIG = {
       fadeEndM: 900,
     },
   },
-  world: { sunDirection: [0.4, 0.8, 0.3] },
+  world: {
+    sunDirection: [0.4, 0.8, 0.3],
+    /** Warm sun, cool sky fill, warm ground bounce. */
+    sun: { color: 0xffe2b8, intensity: 2.6 },
+    hemisphere: { skyColor: 0xdfeeff, groundColor: 0x6b5a48, intensity: 1.0 },
+    sky: {
+      /** Dome radius (m). Must stay below camera.far. */
+      domeRadiusM: 7000,
+      /** Below 1: the horizon colour reaches higher up the sky. */
+      gradientExponent: 0.6,
+    },
+    clouds: {
+      seed: 4107,
+      count: 26,
+      /** Clouds repeat inside a square of this half-size around the player (m). */
+      radiusM: 5000,
+      /** Cloud base above the highest terrain point (m), and layer thickness (m). */
+      baseAboveMaxM: 350,
+      thicknessM: 250,
+      puffsMin: 4,
+      puffsMax: 8,
+      puffSizeMinM: 350,
+      puffSizeMaxM: 800,
+      /** How far puffs of one cloud spread sideways (m). */
+      spreadM: 500,
+      /** Drift in m/s along x and z. */
+      windX: 4,
+      windZ: 1.5,
+      color: 0xffffff,
+      opacity: 0.85,
+    },
+  },
   /** Per-mountain looks (Keokradong spec §3). Gameplay rules stay global. */
   biomes: {
     himalaya: {
       palette: { kind: 'surface' },
-      sky: { color: 0xa9c4dd, fogNear: 800, fogFar: 7000 },
+      sky: { color: 0xa9c4dd, zenithColor: 0x4f86c6, fogNear: 800, fogFar: 7000 },
       vegetation: [],
     },
     'tropical-hills': {
@@ -183,7 +214,7 @@ export const GAME_CONFIG = {
           { maxSlopeDeg: 90, color: [0.55, 0.33, 0.2] },
         ],
       },
-      sky: { color: 0xc4d6cf, fogNear: 300, fogFar: 3500 },
+      sky: { color: 0xc4d6cf, zenithColor: 0x6fa3d8, fogNear: 300, fogFar: 3500 },
       vegetation: [
         {
           kind: 'trees',
@@ -212,7 +243,7 @@ export const GAME_CONFIG = {
         ],
         stripes: { bandIndex: 1, riseM: 3, contrast: 0.25, maxVertexSpacingM: 4 },
       },
-      sky: { color: 0xd9e6dc, fogNear: 400, fogFar: 4500 },
+      sky: { color: 0xd9e6dc, zenithColor: 0x7fb0dc, fogNear: 400, fogFar: 4500 },
       vegetation: [
         {
           kind: 'trees',
