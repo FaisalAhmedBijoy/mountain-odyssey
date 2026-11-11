@@ -77,7 +77,7 @@ export class Game {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
-  private readonly environment: Environment;
+  private environment: Environment | null = null;
   private readonly loop: GameLoop;
   private readonly resizeObserver: ResizeObserver;
   private cleanup: (() => void)[] = [];
@@ -120,7 +120,6 @@ export class Game {
       cfg.camera.near,
       cfg.camera.far,
     );
-    this.environment = new Environment(this.scene, true, cfg.biomes[o.biome].sky);
     this.loop = new GameLoop(
       {
         step: (dt) => this.guard(() => this.step(dt)),
@@ -153,6 +152,14 @@ export class Game {
   private async init(): Promise<void> {
     const o = this.o;
     const manifest = await loadManifest(`${o.terrainBaseUrl}/manifest.json`);
+    const environment = new Environment(
+      this.scene,
+      true,
+      cfg.biomes[o.biome].sky,
+      manifest.maxHeightM + cfg.world.clouds.baseAboveMaxM,
+    );
+    this.environment = environment;
+    this.cleanup.push(() => environment.dispose());
     const physics = await PhysicsWorld.create(cfg.physics.gravity);
     this.cleanup.push(() => physics.dispose());
     const sampler = new TerrainSampler(manifest);
@@ -434,7 +441,7 @@ export class Game {
       frameDt,
     );
     this.guideHud = w.guide.update(feet, w.cameraCtrl.yaw);
-    this.environment.follow(feet);
+    this.environment?.follow(feet, this.loop.isPaused ? 0 : frameDt);
     if (!this.respawning) w.chunks.update(feet.x, feet.z).catch((err: unknown) => this.fail(err));
     if (!this.respawning) {
       for (const t of w.trees) t.update(feet.x, feet.z);
