@@ -39,4 +39,10 @@ describe('stamina', () => {
     });
     expect(capped).toEqual({ value: 50, cap: 100 });
   });
+
+  it('scales drain, but not recovery, by drainMul', () => {
+    const heavy = { recoveryMul: 1, capLimit: 100, drainMul: 1.5 };
+    expect(updateStamina(fullStamina(r), 'run', true, 1, r, heavy).value).toBe(88);
+    expect(updateStamina({ value: 50, cap: 100 }, 'walk', false, 1, r, heavy).value).toBe(56);
+  });
 });

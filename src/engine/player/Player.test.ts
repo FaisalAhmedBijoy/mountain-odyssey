@@ -3,6 +3,7 @@ import { GAME_CONFIG } from '../config/game.config';
 import { EventBus } from '../core/EventBus';
 import type { GameEvents } from '../core/events';
 import type { Vec3 } from '../core/math';
+import { NO_LOAD, type Load } from '../equipment/loadout';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import { NO_GEAR } from '../world/surface';
 import type { TerrainManifest } from '../world/terrainData';
@@ -39,6 +40,7 @@ async function setup(
   spawn: Vec3,
   heightAtZ: (z: number) => number = cliffHeight,
   m: TerrainManifest = manifest,
+  load: Load = NO_LOAD,
 ) {
   const heights = new Float32Array(65 * 65);
   for (let r = 0; r < 65; r++) {
@@ -54,7 +56,7 @@ async function setup(
   events.on('player:fell', (e) => fell.push(e));
   const landed: GameEvents['player:landed'][] = [];
   events.on('player:landed', (e) => landed.push(e));
-  const player = new Player(physics, sampler, events, spawn, NO_GEAR);
+  const player = new Player(physics, sampler, events, spawn, NO_GEAR, load);
   physics.step(DT);
   player.afterPhysics();
   const p = physics;
@@ -87,6 +89,25 @@ describe('Player', () => {
     run({ forward: 1, run: true }, 60);
     expect(player.snapshot.state).toBe('run');
     expect(player.snapshot.stamina.value).toBeCloseTo(92, 0);
+  });
+
+  it('walks slower under a heavy pack', async () => {
+    const heavy: Load = { speedMul: 0.5, staminaCostMul: 1.9 };
+    const { player, run } = await setup({ x: 0, y: 100.05, z: 0 }, cliffHeight, manifest, heavy);
+    run({ forward: 1 }, 60);
+    const walked = -player.snapshot.feet.z;
+    expect(walked).toBeGreaterThan(GAME_CONFIG.movement.walkSpeed * 0.5 * 0.85);
+    expect(walked).toBeLessThan(GAME_CONFIG.movement.walkSpeed * 0.5 * 1.05);
+  });
+
+  it('drains stamina faster under a heavy pack', async () => {
+    const heavy: Load = { speedMul: 0.5, staminaCostMul: 1.9 };
+    const { player, run } = await setup({ x: 0, y: 100.05, z: 0 }, cliffHeight, manifest, heavy);
+    run({}, 10);
+    run({ forward: 1, run: true }, 60);
+    expect(player.snapshot.state).toBe('run');
+    // 8/s × 1.9 for one second.
+    expect(player.snapshot.stamina.value).toBeCloseTo(84.8, 0);
   });
 
   it('offers a grab at the cliff, climbs it and mantles onto the plateau', async () => {

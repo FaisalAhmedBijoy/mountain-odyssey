@@ -15,6 +15,7 @@ import {
   vec3,
   type Vec3,
 } from '../core/math';
+import { NO_LOAD, type Load } from '../equipment/loadout';
 import type { PhysicsWorld } from '../physics/PhysicsWorld';
 import { airTempC } from '../survival/bodyTemp';
 import type { SurvivalModifiers } from '../survival/survival';
@@ -82,6 +83,7 @@ export class Player {
     private readonly events: EventBus<GameEvents>,
     spawnFeet: Vec3,
     private readonly gear: Gear,
+    private readonly load: Load = NO_LOAD,
   ) {
     const R = physics.R;
     const c = { x: spawnFeet.x, y: spawnFeet.y + this.centerOffset, z: spawnFeet.z };
@@ -198,6 +200,7 @@ export class Player {
     this.stamina = updateStamina(this.stamina, next, this.moving, dt, cfg.stamina, {
       recoveryMul: this.survival.staminaRecoveryMul,
       capLimit: this.survival.staminaCapLimit,
+      drainMul: this.load.staminaCostMul,
     });
     this.prompt = this.computePrompt(next, wall);
   }
@@ -330,10 +333,11 @@ export class Player {
   private groundTranslation(state: MoveState, dir: Vec3, input: MoveInput, dt: number): Vec3 {
     const m = cfg.movement;
     const g = cfg.physics.gravity;
+    const k = this.load.speedMul;
     switch (state) {
       case 'walk':
       case 'run': {
-        const speed = state === 'run' ? m.runSpeed : m.walkSpeed;
+        const speed = (state === 'run' ? m.runSpeed : m.walkSpeed) * k;
         this.velocity.x = dir.x * speed;
         this.velocity.z = dir.z * speed;
         if (input.jump && this.grounded) {
@@ -347,13 +351,13 @@ export class Player {
         break;
       }
       case 'slide':
-        this.velocity.x = dir.x * m.walkSpeed * m.airControl;
-        this.velocity.z = dir.z * m.walkSpeed * m.airControl;
+        this.velocity.x = dir.x * m.walkSpeed * m.airControl * k;
+        this.velocity.z = dir.z * m.walkSpeed * m.airControl * k;
         this.velocity.y = Math.max(this.velocity.y + g * dt, -m.maxSlideSpeed);
         break;
       case 'fall':
-        this.velocity.x += dir.x * m.walkSpeed * m.airControl * dt;
-        this.velocity.z += dir.z * m.walkSpeed * m.airControl * dt;
+        this.velocity.x += dir.x * m.walkSpeed * m.airControl * k * dt;
+        this.velocity.z += dir.z * m.walkSpeed * m.airControl * k * dt;
         this.velocity.y = Math.max(this.velocity.y + g * dt, -m.maxFallSpeed);
         break;
       case 'climb':
@@ -371,7 +375,10 @@ export class Player {
     const up = normalize(cross(n, right));
     let t = add(scale(right, input.right), scale(up, input.forward));
     if (length(t) > 0)
-      t = scale(normalize(t), cfg.movement.climbSpeed * this.survival.climbSpeedMul * dt);
+      t = scale(
+        normalize(t),
+        cfg.movement.climbSpeed * this.survival.climbSpeedMul * this.load.speedMul * dt,
+      );
     // On leaning faces the capsule's lower (or, on overhangs, upper) cap touches
     // before its centre does, so the hold distance grows with the lean.
     const hold =

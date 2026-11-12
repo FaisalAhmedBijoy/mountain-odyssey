@@ -30,10 +30,12 @@ export function staminaRate(state: MoveState, moving: boolean, r: StaminaRules):
   }
 }
 
-/** Survival effects on stamina (M2a spec §4.4). */
+/** Survival and pack effects on stamina (M2a spec §4.4, M2b spec §3). */
 export interface StaminaModifiers {
   recoveryMul: number;
   capLimit: number;
+  /** Multiplies drain (negative rates). Default 1. */
+  drainMul?: number;
 }
 
 const NO_MODIFIERS: StaminaModifiers = { recoveryMul: 1, capLimit: Infinity };
@@ -47,7 +49,7 @@ export function updateStamina(
   mods: StaminaModifiers = NO_MODIFIERS,
 ): StaminaState {
   const rate = staminaRate(state, moving, r);
-  const scaled = rate > 0 ? rate * mods.recoveryMul : rate;
+  const scaled = rate > 0 ? rate * mods.recoveryMul : rate * (mods.drainMul ?? 1);
   return { value: clamp(s.value + scaled * dt, 0, Math.min(s.cap, mods.capLimit)), cap: s.cap };
 }
 
