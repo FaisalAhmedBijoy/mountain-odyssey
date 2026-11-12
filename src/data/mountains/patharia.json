@@ -8,5 +8,10 @@
     "sources": ["Copernicus GLO-30 DEM"]
   },
   "terrainBaseUrl": "terrain/patharia",
-  "biome": "tea-garden"
+  "biome": "tea-garden",
+  "gear": {
+    "available": ["boots", "tent", "stove", "food", "water"],
+    "required": ["boots"],
+    "defaults": { "boots": 1, "food": 2, "water": 3 }
+  }
 }

@@ -8,5 +8,35 @@
     "location": { "lat": 0, "lon": 0 },
     "sources": ["Synthetic"]
   },
-  "terrainBaseUrl": "terrain/test-peak"
+  "terrainBaseUrl": "terrain/test-peak",
+  "gear": {
+    "available": [
+      "boots",
+      "crampons",
+      "iceAxe",
+      "harness",
+      "ascender",
+      "jacket",
+      "gloves",
+      "tent",
+      "stove",
+      "food",
+      "water",
+      "o2"
+    ],
+    "required": ["boots"],
+    "defaults": {
+      "boots": 1,
+      "crampons": 1,
+      "iceAxe": 1,
+      "harness": 1,
+      "ascender": 1,
+      "jacket": 1,
+      "gloves": 1,
+      "tent": 1,
+      "food": 4,
+      "water": 4,
+      "o2": 2
+    }
+  }
 }
