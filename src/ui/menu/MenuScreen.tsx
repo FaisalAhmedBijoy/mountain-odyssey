@@ -6,10 +6,11 @@ interface MenuScreenProps {
   subtitle: string;
   back?: { label: string; onClick: () => void };
   children: ReactNode;
+  footer?: ReactNode;
 }
 
 /** Shared frame for the menu screens: title, optional back button, card grid, attribution. */
-export function MenuScreen({ subtitle, back, children }: MenuScreenProps) {
+export function MenuScreen({ subtitle, back, children, footer }: MenuScreenProps) {
   return (
     <main className="menu">
       <header className="menu__header">
@@ -22,6 +23,7 @@ export function MenuScreen({ subtitle, back, children }: MenuScreenProps) {
         <h2 className="menu__subtitle">{subtitle}</h2>
       </header>
       <div className="menu__grid">{children}</div>
+      {footer}
       <footer className="menu__credit">{DEM_ATTRIBUTION}</footer>
     </main>
   );

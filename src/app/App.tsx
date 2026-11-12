@@ -3,6 +3,7 @@ import { getCountry, type CountryCode } from '../data/catalog';
 import { getMountain, type MountainDef } from '../data/mountains';
 import { CountrySelect } from '../ui/menu/CountrySelect';
 import { MountainSelect } from '../ui/menu/MountainSelect';
+import { PrepScreen } from '../ui/prep/PrepScreen';
 import type { Loadout } from '../engine/equipment/loadout';
 import { GameView } from './GameView';
 import { isDesktop, supportsWebGL2 } from './webgl';
@@ -10,6 +11,7 @@ import { isDesktop, supportsWebGL2 } from './webgl';
 type Screen =
   | { screen: 'countries' }
   | { screen: 'mountains'; country: CountryCode }
+  | { screen: 'prep'; mountain: MountainDef; country: CountryCode }
   /** `country` is null when the game was opened with a `?mountain=` deep link. */
   | { screen: 'game'; mountain: MountainDef; country: CountryCode | null; loadout: Loadout }
   | { screen: 'unknown'; id: string };
@@ -54,14 +56,23 @@ function Screens() {
           onBack={() => setScreen({ screen: 'countries' })}
           onClimb={(id) => {
             const mountain = getMountain(id);
-            if (mountain)
-              setScreen({
-                screen: 'game',
-                mountain,
-                country: screen.country,
-                loadout: mountain.gear.defaults,
-              });
+            if (mountain) setScreen({ screen: 'prep', mountain, country: screen.country });
           }}
+        />
+      );
+    case 'prep':
+      return (
+        <PrepScreen
+          mountain={screen.mountain}
+          onBack={() => setScreen({ screen: 'mountains', country: screen.country })}
+          onStart={(loadout) =>
+            setScreen({
+              screen: 'game',
+              mountain: screen.mountain,
+              country: screen.country,
+              loadout,
+            })
+          }
         />
       );
     case 'game':

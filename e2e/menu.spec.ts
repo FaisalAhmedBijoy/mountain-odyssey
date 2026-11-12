@@ -33,6 +33,8 @@ test('picks a country, then a mountain, then starts loading it', async ({ page }
   await page.getByRole('button', { name: /Countries/ }).click();
   await page.getByRole('button', { name: /Nepal/ }).click();
   await page.getByRole('button', { name: /Mera Peak/ }).click();
+  await expect(page.getByRole('heading', { name: 'Mera Peak — pack your gear' })).toBeVisible();
+  await page.getByRole('button', { name: 'Start climb' }).click();
   await expect(page.getByTestId('game-root')).toHaveAttribute('data-mountain', 'mera-peak');
   expect(errors).toEqual([]);
 });
