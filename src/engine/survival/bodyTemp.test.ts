@@ -15,6 +15,7 @@ const at = (altitudeM: number, over: Partial<BodyTempInputs> = {}): BodyTempInpu
   windMs: 0,
   activity: 'idle',
   atCamp: false,
+  insulation: 20,
   ...over,
 });
 

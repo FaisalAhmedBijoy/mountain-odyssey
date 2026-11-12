@@ -14,21 +14,23 @@ import {
 } from './survival';
 
 const r = GAME_CONFIG.survival;
+const PACK = { food: 4, water: 4, o2: 2 };
 const idleAt = (altitudeM: number, over: Partial<SurvivalInputs> = {}): SurvivalInputs => ({
   altitudeM,
   activity: 'idle',
   atCamp: false,
+  insulation: 20,
   windMs: 0,
   ...over,
 });
 const state = (over: Partial<SurvivalState> = {}): SurvivalState => ({
-  ...initialSurvival(r, 5000),
+  ...initialSurvival(r, 5000, PACK),
   ...over,
 });
 
 describe('initialSurvival', () => {
   it('starts full, with the starting pack and oxygen at the ceiling', () => {
-    expect(initialSurvival(r, 5000)).toEqual({
+    expect(initialSurvival(r, 5000, PACK)).toEqual({
       oxygen: 50,
       bodyTemp: 100,
       supplies: 100,
@@ -157,6 +159,22 @@ describe('restAtCamp', () => {
     expect(s.bodyTemp).toBe(100);
     expect(s.oxygen).toBe(36.25);
     expect(s.supplies).toBe(40);
+  });
+
+  it('warms only as far as the shelter allows: tent 50, tent and stove about 83, never colder', () => {
+    const t = r.temperature;
+    expect(restAtCamp(state({ bodyTemp: 40 }), 5800, r, false, t.tentShelterHeat).bodyTemp).toBe(
+      50,
+    );
+    expect(
+      restAtCamp(state({ bodyTemp: 40 }), 5800, r, false, t.tentShelterHeat + t.stoveHeat).bodyTemp,
+    ).toBeCloseTo(83.33, 2);
+    expect(restAtCamp(state({ bodyTemp: 70 }), 5800, r, false, t.tentShelterHeat).bodyTemp).toBe(
+      70,
+    );
+    expect(
+      restAtCamp(state({ bodyTemp: 40 }), 5800, r, true, t.campShelterHeat + t.stoveHeat).bodyTemp,
+    ).toBe(100);
   });
 });
 

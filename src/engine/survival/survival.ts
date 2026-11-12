@@ -31,6 +31,7 @@ export interface SurvivalInputs {
   activity: Activity;
   atCamp: boolean;
   windMs: number;
+  insulation: number;
 }
 
 /** What survival does to the player's stamina and climbing (M2a spec §4.2, §4.4). */
@@ -43,13 +44,17 @@ export interface SurvivalModifiers {
 const ceilingAt = (s: SurvivalState, altitudeM: number, r: SurvivalRules): number =>
   oxygenCeiling(altitudeM, s.acclimatizationM, s.o2SecondsLeft > 0, r.oxygen, r.max);
 
-export function initialSurvival(r: SurvivalRules, altitudeM: number): SurvivalState {
+export function initialSurvival(
+  r: SurvivalRules,
+  altitudeM: number,
+  inventory: Inventory,
+): SurvivalState {
   const s: SurvivalState = {
     oxygen: r.max,
     bodyTemp: r.max,
     supplies: r.max,
     acclimatizationM: 0,
-    inventory: { ...r.startingPack },
+    inventory: { ...inventory },
     o2SecondsLeft: 0,
   };
   return { ...s, oxygen: ceilingAt(s, altitudeM, r) };
@@ -125,21 +130,24 @@ export function startBottle(
 }
 
 /**
- * Effects of a completed rest at a camp (M2a spec §4.5). Stamina is restored by Player.
- * `acclimatize` is false when this camp already granted its acclimatization.
+ * Effects of a completed rest (M2a spec §4.5, M2b plan deviation 1). Stamina is restored by Player.
+ * `acclimatize` is false when this camp already granted its acclimatization, and for tent rests.
+ * `warmth` is the rest's shelter heat; a camp's warms fully, less warms proportionally.
  */
 export function restAtCamp(
   s: SurvivalState,
   altitudeM: number,
   r: SurvivalRules,
   acclimatize: boolean,
+  warmth: number = r.temperature.campShelterHeat,
 ): SurvivalState {
+  const warmed = r.max * Math.min(1, warmth / r.temperature.campShelterHeat);
   const rested: SurvivalState = {
     ...s,
     acclimatizationM: acclimatize
       ? Math.min(r.acclimatization.maxM, s.acclimatizationM + r.acclimatization.perRestM)
       : s.acclimatizationM,
-    bodyTemp: r.max,
+    bodyTemp: Math.max(s.bodyTemp, warmed),
     supplies: Math.max(0, s.supplies - r.supplies.restCost),
   };
   return { ...rested, oxygen: ceilingAt(rested, altitudeM, r) };

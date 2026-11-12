@@ -1,6 +1,6 @@
 import type { MoveState } from '../player/movementState';
 import { activityOf } from './bodyTemp';
-import { consumeNext } from './inventory';
+import { consumeNext, type Inventory } from './inventory';
 import {
   initialSurvival,
   respawnSurvival,
@@ -39,6 +39,14 @@ export interface SurvivalOutput {
   restFinished: boolean;
 }
 
+/** What the loadout gives survival (M2b spec §5.2), fixed for the climb. */
+export interface SurvivalKit {
+  insulation: number;
+  inventory: Inventory;
+  tent: boolean;
+  stove: boolean;
+}
+
 /** Owns the survival state; turns key actions into state changes and toasts. */
 export class SurvivalSystem {
   private s: SurvivalState;
@@ -52,8 +60,9 @@ export class SurvivalSystem {
   constructor(
     private readonly r: SurvivalRules,
     startAltitudeM: number,
+    private readonly kit: SurvivalKit,
   ) {
-    this.s = initialSurvival(r, startAltitudeM);
+    this.s = initialSurvival(r, startAltitudeM, kit.inventory);
   }
 
   get state(): SurvivalState {
@@ -81,12 +90,13 @@ export class SurvivalSystem {
     if (this.resting) return this.continueRest(f.altitudeM, dt);
     let toast: string | null = null;
     if (f.actions.rest) {
-      if (f.campId !== null && f.grounded && f.state !== 'climb') {
+      const sheltered = f.campId !== null || this.kit.tent;
+      if (sheltered && f.grounded && f.state !== 'climb') {
         this.restLeftSec = this.r.restSeconds;
         this.restCampId = f.campId;
         return { death: null, toast: 'Resting…', restFinished: false };
       }
-      toast = f.campId !== null ? 'Stand on the ground to rest' : 'You can only rest at a camp';
+      toast = sheltered ? 'Stand on the ground to rest' : 'You can only rest at a camp';
     }
     if (f.actions.eat) toast = this.eat();
     if (f.actions.oxygen) toast = this.useOxygen();
@@ -97,6 +107,7 @@ export class SurvivalSystem {
         activity: activityOf(f.state, f.moving),
         atCamp: f.campId !== null,
         windMs: f.windMs,
+        insulation: this.kit.insulation,
       },
       dt,
       this.r,
@@ -117,9 +128,17 @@ export class SurvivalSystem {
     if (this.restLeftSec > 0) return { death: null, toast: null, restFinished: false };
     const campId = this.restCampId;
     this.restCampId = null;
-    const acclimatize = campId !== null && !this.acclimatizedAt.has(campId);
+    const t = this.r.temperature;
+    const warmth =
+      (campId !== null ? t.campShelterHeat : t.tentShelterHeat) +
+      (this.kit.stove ? t.stoveHeat : 0);
+    if (campId === null) {
+      this.s = restAtCamp(this.s, altitudeM, this.r, false, warmth);
+      return { death: null, toast: 'Rested in the tent', restFinished: true };
+    }
+    const acclimatize = !this.acclimatizedAt.has(campId);
     if (acclimatize) this.acclimatizedAt.add(campId);
-    this.s = restAtCamp(this.s, altitudeM, this.r, acclimatize);
+    this.s = restAtCamp(this.s, altitudeM, this.r, acclimatize, warmth);
     const m = this.s.acclimatizationM;
     return {
       death: null,

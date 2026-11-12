@@ -67,7 +67,6 @@ export const GAME_CONFIG = {
     max: 100,
     restSeconds: 3,
     respawnItemLossFraction: 0.2,
-    startingPack: { food: 4, water: 4, o2: 2 },
     acclimatization: { perRestM: 250, maxM: 1000 },
     oxygen: {
       ceilingRefAltitudeM: 3000,
@@ -86,7 +85,6 @@ export const GAME_CONFIG = {
       lapseCPerKm: 6.5,
       comfortC: 10,
       windFactorPerMs: 0.1,
-      insulation: 20,
       /** Clothing always worn; items add to it (M2b spec §3). */
       baseInsulation: 6,
       /** Shelter heat of a tent rest away from a camp. */

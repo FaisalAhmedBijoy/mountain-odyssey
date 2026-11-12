@@ -8,7 +8,6 @@ export interface TemperatureRules {
   lapseCPerKm: number;
   comfortC: number;
   windFactorPerMs: number;
-  insulation: number;
   activityHeat: Readonly<Record<Activity, number>>;
   campShelterHeat: number;
   rateDivisor: number;
@@ -19,6 +18,8 @@ export interface BodyTempInputs {
   windMs: number;
   activity: Activity;
   atCamp: boolean;
+  /** Base clothing plus packed items (M2b spec §3). */
+  insulation: number;
 }
 
 /** Moving while running or climbing exerts; walking warms a little; everything else is idle. */
@@ -36,7 +37,7 @@ export const coldExposure = (airC: number, windMs: number, r: TemperatureRules):
 
 /** Body temperature change per second (M2a spec §4.2). */
 export function bodyTempRate(i: BodyTempInputs, r: TemperatureRules): number {
-  const heat = r.insulation + r.activityHeat[i.activity] + (i.atCamp ? r.campShelterHeat : 0);
+  const heat = i.insulation + r.activityHeat[i.activity] + (i.atCamp ? r.campShelterHeat : 0);
   return (heat - coldExposure(airTempC(i.altitudeM, r), i.windMs, r)) / r.rateDivisor;
 }
 

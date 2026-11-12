@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { landingTrauma } from '../camera/cameraShake';
 import { ThirdPersonCamera } from '../camera/ThirdPersonCamera';
 import { GAME_CONFIG as cfg, type BiomeId } from '../config/game.config';
+import { insulationOf } from '../equipment/loadout';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import type { MoveInput } from '../player/movementState';
 import { Player } from '../player/Player';
@@ -247,7 +248,13 @@ export class Game {
         this.events,
       ),
       guide,
-      survival: new SurvivalSystem(cfg.survival, player.snapshot.feet.y),
+      // Temporary M2a-equivalent kit; Task 7 derives it from the loadout.
+      survival: new SurvivalSystem(cfg.survival, player.snapshot.feet.y, {
+        insulation: insulationOf({ jacket: 1, gloves: 1 }),
+        inventory: { food: 4, water: 4, o2: 2 },
+        tent: false,
+        stove: false,
+      }),
       mapBounds: mapBounds(manifest),
       campIds: manifest.camps.map((c) => c.id),
     };
