@@ -85,3 +85,15 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] On test-peak, Patharia, Keokradong and Mera Peak: the sky is bluer overhead and pale at the horizon, with no visible line where far terrain meets the sky.
 - [ ] White clouds sit above the highest ground, never touch terrain, drift slowly, and do not run out after a minute of walking.
 - [ ] Sunlit ground looks slightly warmer than before; shadows are still visible; frame rate is not visibly worse.
+
+## Equipment (M2b)
+
+- [ ] Nepal → Mera Peak opens the Prep screen with 28.7 / 20 kg, an orange bar and the over-weight warning.
+- [ ] Removing O₂ bottles and the tent lowers the weight; under 20 kg the bar turns green and the warning goes.
+- [ ] Boots cannot be removed; Back returns to Mountain Select.
+- [ ] Without crampons, a steep ice face on the glacier says "Requires ice axe + crampons" and cannot be grabbed.
+- [ ] Without gloves, a wall near the summit (below −15 °C) says "Requires gloves (too cold)".
+- [ ] Without the jacket, Warmth falls clearly faster above High Camp.
+- [ ] With a tent, R away from a camp rests ("Rested in the tent") and does not acclimatize; without one it says "You can only rest at a camp".
+- [ ] A heavy pack (all O₂, food and water) feels clearly slower than a light one.
+- [ ] The HUD item row shows the pack weight.

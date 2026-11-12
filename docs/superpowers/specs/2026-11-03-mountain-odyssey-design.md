@@ -188,20 +188,28 @@ bodyTemp < 30     → climb speed −30%
 
 Each item has `id`, `name`, `slot`, `weightKg` and `effects`.
 
-| Item | Slot | Effect |
-|---|---|---|
-| Mountaineering boots | Feet | Required to leave Khare |
-| Crampons | Feet (add-on) | Grip on ice; enables ice climbing |
-| Ice axe | Hand | Enables snow/ice climbing; self-arrest reduces slide distance |
-| Harness | Body | Required for fixed ropes |
-| Ascender | Hand (add-on) | Required for fixed ropes |
-| Insulated jacket | Body | +insulation |
-| Gloves | Hands | +insulation; climbing allowed below −15 °C |
-| Tent | Pack | Enables rest outside camps |
-| Stove | Pack | +shelterHeat while resting; melts snow to water |
-| Food ration | Pack (stack) | +25 supplies |
-| Water | Pack (stack) | +15 supplies |
-| O₂ bottle | Pack (stack) | 10 minutes of bottled O₂ |
+| Item | Slot | weightKg | Effect |
+| --- | --- | --- | --- |
+| Mountaineering boots | Feet | 2.0 | Required to leave Khare |
+| Crampons | Feet (add-on) | 1.0 | Grip on ice; enables ice climbing |
+| Ice axe | Hand | 0.7 | Enables snow/ice climbing; self-arrest reduces slide distance |
+| Harness | Body | 0.5 | Required for fixed ropes |
+| Ascender | Hand (add-on) | 0.3 | Required for fixed ropes |
+| Insulated jacket | Body | 1.5 | +insulation |
+| Gloves | Hands | 0.3 | +insulation; climbing allowed below −15 °C |
+| Tent | Pack | 3.0 | Enables rest outside camps |
+| Stove | Pack | 1.5 | +shelterHeat while resting; melts snow to water |
+| Food ration | Pack (stack) | 0.6 | +25 supplies |
+| Water | Pack (stack) | 1.0 | +15 supplies |
+| O₂ bottle | Pack (stack) | 3.5 | 10 minutes of bottled O₂ |
+
+> **Update (M2b, 2026-11-11):**
+> - A fixed 6 kg base pack (sleeping bag, clothes, first aid) is always carried.
+> - Insulation is a base of 6 plus jacket +12 and gloves +4.
+> - Starting food, water and O₂ come from the loadout.
+> - The weight penalty is fixed when the climb starts, with speed never below 50 %.
+>
+> See `2026-11-11-m2b-equipment-design.md`.
 
 **Weight rule:** above 20 kg total pack weight, each additional kg applies −2% movement speed and +3% stamina cost. The prep screen shows the budget live.
 

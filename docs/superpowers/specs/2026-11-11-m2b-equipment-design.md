@@ -5,7 +5,7 @@
 | Milestone | M2b (see the M2 breakdown in `2026-11-06-m2a-survival-design.md` §1) |
 | Depends on | M2a (survival stats) |
 | Date | 2026-11-11 |
-| Status | approved design, not implemented |
+| Status | implemented (plan docs/superpowers/plans/2026-11-12-m2b-equipment.md) |
 
 ## 1. Goal
 
@@ -163,3 +163,16 @@ loadoutWarnings(l, mountainGear): string[]        // for the Prep screen
 - Design spec §5.3: add the weight column, base pack, insulation split and the 2026-11-11 note pointing here.
 - `CLAUDE.md`: project status (M2b implemented) and an "Equipment" paragraph in Architecture.
 - `docs/playtest/m1-checklist.md`: an M2b section (Prep screen weight and warnings, ice gating without crampons, gloves near the summit, tent rest, heavy pack feels slower).
+
+## 9. Deviations recorded during implementation
+
+1. **What tent and stove heat do.** Survival does not tick during a rest; a finished rest just sets body temperature to full. So "shelter heat during the rest" from spec §5.2 would have no effect. Instead, a finished rest sets body temperature to `max(current, 100 × min(1, warmth / campShelterHeat))`, where:
+   - `warmth = (campShelterHeat at a camp, or tentShelterHeat in a tent) + (stoveHeat with a stove)`.
+   - A camp rest still warms to full (30 / 30).
+   - A tent rest warms to 50 (15 / 30).
+   - A tent rest with a stove warms to about 83 (25 / 30).
+2. **Toast for a tent rest:** `Rested in the tent`. The spec gives none.
+3. **The weight bar shows `28.7 / 20 kg` only.** The penalty text appears once, in the warning list (`Over 20 kg: −17 % speed, +26 % stamina use.`), not repeated next to the bar.
+4. **The Patharia e2e test checks that Prep → Start opens the game for `patharia`, but not the HUD's `Pack 12.2 kg`.** CI bakes only `test-peak` (`pree2e`), so Patharia never finishes loading there. `Pack 12.2 kg` is covered on the Prep screen (`12.2 / 20 kg`) and by the unit test in Task 6. The HUD pack text is covered on test-peak (`Pack 28.7 kg`).
+5. **The `R — Rest` prompt still appears only at camps.** With a tent, `R` works anywhere on the ground, and the controls hint changes to `Rest at camp or tent`. A prompt shown everywhere would be noise.
+6. **`weightPenalty` rounds the over-weight kilograms to 0.001 kg.** Otherwise float sums such as 20.000000000000004 kg would produce a `−0 %` warning.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Mountain Odyssey is a free, browser-based, third-person mountaineering game (desktop only, keyboard + mouse, WebGL2). Phase 0 + M1 (vertical slice: Khare → High Camp on Mera Peak) is implemented; the manual playtest gate in `docs/playtest/m1-checklist.md` is pending. M2a (survival stats, spec `docs/superpowers/specs/2026-11-06-m2a-survival-design.md`, plan `docs/superpowers/plans/2026-11-06-m2a-survival.md`) is implemented. The rest of M2 (M2b–M2f, per that spec's §1) is next; each sub-project gets its own spec and plan. Keokradong (Bangladesh; spec `docs/superpowers/specs/2026-11-06-keokradong-design.md`) is playable as a second mountain, with the `tropical-hills` biome and trees. Patharia Hills (Sylhet, Bangladesh; spec `docs/superpowers/specs/2026-11-07-patharia-design.md`) is playable too, with the `tea-garden` biome and instanced tea hedge rows. The visual realism spec (`docs/specs/specs/001-visual-realism.md`) is implemented: baked Sentinel-2 terrain imagery, a toon-shaded outlined character, an over-the-shoulder camera and a painted sky. Its task B3 (swapping the placeholder robot for an illustrated human climber) is not done yet; it waits for a person to choose a model file.
+Mountain Odyssey is a free, browser-based, third-person mountaineering game (desktop only, keyboard + mouse, WebGL2). Phase 0 + M1 (vertical slice: Khare → High Camp on Mera Peak) is implemented; the manual playtest gate in `docs/playtest/m1-checklist.md` is pending. M2a (survival stats, spec `docs/superpowers/specs/2026-11-06-m2a-survival-design.md`, plan `docs/superpowers/plans/2026-11-06-m2a-survival.md`) is implemented. M2b (equipment, spec `docs/superpowers/specs/2026-11-11-m2b-equipment-design.md`, plan `docs/superpowers/plans/2026-11-12-m2b-equipment.md`) is implemented. The rest of M2 (M2c–M2f, per the M2a spec's §1) is next; each sub-project gets its own spec and plan. Keokradong (Bangladesh; spec `docs/superpowers/specs/2026-11-06-keokradong-design.md`) is playable as a second mountain, with the `tropical-hills` biome and trees. Patharia Hills (Sylhet, Bangladesh; spec `docs/superpowers/specs/2026-11-07-patharia-design.md`) is playable too, with the `tea-garden` biome and instanced tea hedge rows. The visual realism spec (`docs/specs/specs/001-visual-realism.md`) is implemented: baked Sentinel-2 terrain imagery, a toon-shaded outlined character, an over-the-shoulder camera and a painted sky. Its task B3 (swapping the placeholder robot for an illustrated human climber) is not done yet; it waits for a person to choose a model file.
 
 - Design spec (source of truth for gameplay numbers and scope): `docs/superpowers/specs/2026-11-03-mountain-odyssey-design.md`
 - Implemented plan (Phase 0 + M1 vertical slice, 16 TDD tasks): `docs/superpowers/plans/2026-11-03-m1-vertical-slice.md`
@@ -35,7 +35,7 @@ npm run terrain:patharia   # bake Patharia Hills (Sylhet) from Copernicus DEM (n
 
 Production: pushes to `main` that pass CI are deployed to GitHub Pages (`.github/workflows/deploy.yml`, site under `/mountain-odyssey/`). Static files in `public/` must be referenced through `assetUrl()` (`src/app/assetUrl.ts`), never with a leading `/`, so they resolve under that base path. Local check: `VITE_BASE=/mountain-odyssey/ npm run build && npx vite preview --base /mountain-odyssey/`.
 
-Without a query the app opens on the country menu (country → mountain → game). `?mountain=<id>` (e.g. `/?mountain=test-peak`) skips the menus and loads that mountain directly.
+Without a query the app opens on the country menu (country → mountain → prep → game). `?mountain=<id>` (e.g. `/?mountain=test-peak`) skips the menus and loads that mountain directly. `?mountain=<id>` starts with that mountain's default loadout.
 
 ## Architecture
 
@@ -48,6 +48,15 @@ Without a query the app opens on the country menu (country → mountain → game
 **Movement logic is pure and separate from physics:** `movementState.ts` (state machine: walk/run/slide/climb/fall), `stamina.ts` and `fallDamage.ts` are pure functions unit-tested without Rapier. `Player.ts` glues them to physics and raycasts. Fall damage is scored per segment: airborne falls plus sliding on ground ≥ 50° (`minClimbSlopeDeg`) accumulate; a gentle (33–50°) slide, a landing, or grabbing a wall scores the pending segment. Gentle slides never damage.
 
 **Survival is pure too:** `src/engine/survival/` holds oxygen, body temperature, supplies and inventory rules (`survival.ts` combines them). `SurvivalSystem` turns `F` / `O` / `R` into state changes and toasts, and `Game` runs it every step after the player, forwards `survival.modifiers` to `Player` (stamina recovery, stamina cap, climb speed), and respawns on `collapse` or `hypothermia` like a fatal fall. Rest pauses survival for `restSeconds`.
+
+**Equipment:**
+
+- Item data is in `GAME_CONFIG.items`. Rules are pure in `src/engine/equipment/` (`loadout.ts`: weight, penalty, gear flags, insulation, starting inventory, validation, Prep warnings). React may import that folder.
+- Each mountain JSON has an optional `gear` block (`available`, `required`, `defaults`). Without one, it gets boots, food and water.
+- `PrepScreen` (`src/ui/prep/`) builds a `Loadout`. `Game.create` validates it, then derives:
+  - `Gear` for `Player` and `climbRequirement`. Gloves are needed below `equipment.glovesMinAirTempC`, on every surface.
+  - a `Load`: speed and stamina-drain multipliers, fixed for the climb.
+  - a `SurvivalKit` (insulation, inventory, tent, stove). A tent lets `R` rest away from camps, without acclimatization. Rest warmth is shelter heat ÷ `campShelterHeat`.
 
 **Look:** `toonLook.ts` turns every material of the character GLB into a toon material and adds a back-face outline mesh pushed out in screen space; `PlayerVisual` applies it to any model, and clip names are resolved from `GAME_CONFIG.character.clips` (`toonMath.ts`). `ThirdPersonCamera` shifts the look target to the right (`shoulderOffsetM`) and adds landing shake and run bob from `cameraShake.ts`; `Game` turns `player:landed` into trauma. `Sky.ts` (a vertex-coloured dome and sprite clouds) is owned by `Environment`, which `Game` creates after the manifest loads so clouds sit above the highest ground.
 
