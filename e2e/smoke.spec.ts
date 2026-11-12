@@ -14,7 +14,7 @@ test('loads the test mountain and shows the HUD at Khare', async ({ page }) => {
   for (const name of ['Stamina', 'Oxygen', 'Warmth', 'Supplies']) {
     await expect(page.getByRole('meter', { name })).toBeVisible();
   }
-  await expect(page.getByTestId('items')).toHaveText('Food 4 · Water 4 · O₂ 2');
+  await expect(page.getByTestId('items')).toHaveText('Food 4 · Water 4 · O₂ 2 · Pack 28.7 kg');
   await expect(page.getByText('Click to play')).toBeVisible();
   const controls = page.getByTestId('controls');
   await expect(controls).toContainText('Grab wall');

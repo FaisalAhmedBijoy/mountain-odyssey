@@ -28,7 +28,7 @@ export const CONTROL_HINTS: ControlHint[] = [
   { keys: keysFor('grab'), label: 'Grab wall' },
   { keys: keysFor('eat'), label: 'Eat / drink' },
   { keys: keysFor('oxygen'), label: 'Bottled O₂' },
-  { keys: keysFor('rest'), label: 'Rest at camp' },
+  { keys: keysFor('rest'), label: 'Rest at camp or tent' },
   { keys: ['Mouse'], label: 'Look' },
   { keys: ['Wheel'], label: 'Zoom' },
   { keys: keysFor('cameraDistance'), label: 'Camera distance' },

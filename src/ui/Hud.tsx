@@ -55,7 +55,7 @@ export function Hud({ onExit, mountainName }: { onExit?: () => void; mountainNam
         <StatBar label="Warmth" value={s.bodyTemp} tone="warmth" warn={s.lowStats.bodyTemp} />
         <StatBar label="Supplies" value={s.supplies} tone="supplies" warn={s.lowStats.supplies} />
         <div className="hud__items" data-testid="items">
-          {`Food ${s.items.food} · Water ${s.items.water} · O₂ ${s.items.o2}`}
+          {`Food ${s.items.food} · Water ${s.items.water} · O₂ ${s.items.o2} · Pack ${s.packKg.toFixed(1)} kg`}
         </div>
         {s.o2SecondsLeft !== null && (
           <div className="hud__o2">{`O₂ flowing ${formatMinSec(s.o2SecondsLeft)}`}</div>

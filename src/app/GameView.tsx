@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import type { MountainDef } from '../data/mountains';
+import type { Loadout } from '../engine/equipment/loadout';
 import { isBiomeId } from '../engine/config/game.config';
 import { Game } from '../engine/core/Game';
 import { initialHudState } from '../engine/core/hud';
@@ -10,7 +11,15 @@ import { assetUrl } from './assetUrl';
 
 const CHARACTER_URL = assetUrl('models/RobotExpressive.glb');
 
-export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: () => void }) {
+export function GameView({
+  mountain,
+  loadout,
+  onExit,
+}: {
+  mountain: MountainDef;
+  loadout: Loadout;
+  onExit: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [attempt, setAttempt] = useState(0);
   const status = useStore(gameStore, (s) => s.status);
@@ -31,6 +40,8 @@ export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: 
     Game.create({
       canvas,
       biome,
+      loadout,
+      mountainGear: mountain.gear,
       terrainBaseUrl: assetUrl(mountain.terrainBaseUrl),
       characterUrl: CHARACTER_URL,
       publish: (patch) => {
@@ -60,7 +71,7 @@ export function GameView({ mountain, onExit }: { mountain: MountainDef; onExit: 
       canvas.remove();
       gameStore.setState(initialHudState, true);
     };
-  }, [mountain, attempt]);
+  }, [mountain, loadout, attempt]);
 
   return (
     <div

@@ -25,6 +25,8 @@ export interface HudState {
   /** Raw stat below its warning threshold (drives the bar flash). */
   lowStats: LowStats;
   items: Inventory;
+  /** Pack weight in kg, one decimal, published once at load. */
+  packKg: number;
   /** Whole seconds of bottled oxygen left, or null when no bottle is active. */
   o2SecondsLeft: number | null;
   /** Most severe survival warning, already worded for the player. */
@@ -62,6 +64,7 @@ export const initialHudState: HudState = {
   supplies: 100,
   lowStats: { oxygen: false, bodyTemp: false, supplies: false },
   items: { food: 0, water: 0, o2: 0 },
+  packKg: 0,
   o2SecondsLeft: null,
   warning: null,
   resting: false,

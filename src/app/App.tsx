@@ -3,6 +3,7 @@ import { getCountry, type CountryCode } from '../data/catalog';
 import { getMountain, type MountainDef } from '../data/mountains';
 import { CountrySelect } from '../ui/menu/CountrySelect';
 import { MountainSelect } from '../ui/menu/MountainSelect';
+import type { Loadout } from '../engine/equipment/loadout';
 import { GameView } from './GameView';
 import { isDesktop, supportsWebGL2 } from './webgl';
 
@@ -10,7 +11,7 @@ type Screen =
   | { screen: 'countries' }
   | { screen: 'mountains'; country: CountryCode }
   /** `country` is null when the game was opened with a `?mountain=` deep link. */
-  | { screen: 'game'; mountain: MountainDef; country: CountryCode | null }
+  | { screen: 'game'; mountain: MountainDef; country: CountryCode | null; loadout: Loadout }
   | { screen: 'unknown'; id: string };
 
 function Unsupported({
@@ -36,7 +37,9 @@ function initialScreen(): Screen {
   const id = new URLSearchParams(window.location.search).get('mountain');
   if (id === null) return { screen: 'countries' };
   const mountain = getMountain(id);
-  return mountain ? { screen: 'game', mountain, country: null } : { screen: 'unknown', id };
+  return mountain
+    ? { screen: 'game', mountain, country: null, loadout: mountain.gear.defaults }
+    : { screen: 'unknown', id };
 }
 
 function Screens() {
@@ -51,7 +54,13 @@ function Screens() {
           onBack={() => setScreen({ screen: 'countries' })}
           onClimb={(id) => {
             const mountain = getMountain(id);
-            if (mountain) setScreen({ screen: 'game', mountain, country: screen.country });
+            if (mountain)
+              setScreen({
+                screen: 'game',
+                mountain,
+                country: screen.country,
+                loadout: mountain.gear.defaults,
+              });
           }}
         />
       );
@@ -59,6 +68,7 @@ function Screens() {
       return (
         <GameView
           mountain={screen.mountain}
+          loadout={screen.loadout}
           onExit={() => {
             // Drop a deep link so a reload opens the menus, not the same mountain.
             window.history.replaceState(null, '', window.location.pathname);
