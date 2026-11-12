@@ -16,6 +16,7 @@ import {
   type Vec3,
 } from '../core/math';
 import type { PhysicsWorld } from '../physics/PhysicsWorld';
+import { airTempC } from '../survival/bodyTemp';
 import type { SurvivalModifiers } from '../survival/survival';
 import { climbRequirement, surfaceAt, type Gear } from '../world/surface';
 import type { TerrainSampler } from '../world/TerrainSampler';
@@ -298,7 +299,8 @@ export class Player {
     if (!hit) return null;
     const slopeDeg = radToDeg(Math.acos(clamp(hit.normal.y, -1, 1)));
     const surface = surfaceAt(slopeDeg, hit.point.y, cfg.surface);
-    const requirement = climbRequirement(surface, this.gear);
+    const airC = airTempC(this.feetOf(center).y, cfg.survival.temperature);
+    const requirement = climbRequirement(surface, this.gear, airC, cfg.equipment.glovesMinAirTempC);
     return {
       slopeDeg,
       surface,

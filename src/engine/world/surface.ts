@@ -7,12 +7,26 @@ export interface SurfaceRules {
   iceMinSlopeDeg: number;
 }
 
+/** What the loadout lets the player do (M2b spec §5.2). */
 export interface Gear {
   iceAxe: boolean;
   crampons: boolean;
+  gloves: boolean;
+  harness: boolean;
+  ascender: boolean;
+  tent: boolean;
+  stove: boolean;
 }
 
-export const NO_GEAR: Gear = { iceAxe: false, crampons: false };
+export const NO_GEAR: Gear = {
+  iceAxe: false,
+  crampons: false,
+  gloves: false,
+  harness: false,
+  ascender: false,
+  tent: false,
+  stove: false,
+};
 
 /** M1 runtime classification; baked splat maps replace this in M2. */
 export function surfaceAt(slopeDeg: number, altitudeM: number, rules: SurfaceRules): Surface {
@@ -22,8 +36,14 @@ export function surfaceAt(slopeDeg: number, altitudeM: number, rules: SurfaceRul
   return 'snow';
 }
 
-/** Null when climbable with this gear, otherwise the HUD message (spec §5.1). */
-export function climbRequirement(surface: Surface, gear: Gear): string | null {
+/** Null when climbable with this gear, otherwise the HUD message (spec §5.1, M2b §3). */
+export function climbRequirement(
+  surface: Surface,
+  gear: Gear,
+  airTempC: number,
+  glovesMinAirTempC: number,
+): string | null {
+  if (airTempC < glovesMinAirTempC && !gear.gloves) return 'Requires gloves (too cold)';
   if (surface === 'snow') return gear.iceAxe ? null : 'Requires ice axe';
   if (surface === 'ice') return gear.iceAxe && gear.crampons ? null : 'Requires ice axe + crampons';
   return null;
