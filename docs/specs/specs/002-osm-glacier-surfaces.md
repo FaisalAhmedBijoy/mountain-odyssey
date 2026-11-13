@@ -66,7 +66,7 @@ Out of scope: see the instruction.
 
 - **Old outlines.** OSM glacier outlines may be years old. The pinned extract date goes into the manifest attribution comment, so updates are a deliberate re-bake.
 - **Edge sharpness.** At 8 m resolution, colour edges at the glacier rim will be visibly hard on close tiles. Soft blending is out of scope; check it in the playtest.
-- **Large download.** The Nepal extract is about 415 MB. The bake caches it under `tools/terrain/.cache/` (git-ignored) and checks its size. A filtered copy (glaciers only) can also be cached, to avoid re-parsing.
+- **Large download.** The 415 MB extract is read once by `tools/terrain/extract_glaciers.py`, and only the ~30 KB GeoJSON is committed, so bakes and CI download nothing extra. Re-extract deliberately to update the outlines.
 - **Licence.** ODbL. A produced work (our mask) needs attribution, not share-alike of the game. The bake records the source and date in the manifest.
 - **Worker message size.** Each tile build sends only its own mask crop (65 × 65 bytes at 8 m over a 512 m tile), not the whole mask.
 
@@ -177,11 +177,9 @@ Manual (playtest checklist):
 
 ## 7. Deploy notes
 
-- `public/terrain/` is generated and git-ignored. Re-bake Mera with `npm run terrain:mera` after this lands. The CI deploy bakes from the configs, so the pinned extract downloads in CI too (about 415 MB). Cache `tools/terrain/.cache/` in the workflow, or run the deploy bake with the filtered glacier cache.
-- Add `tools/terrain/.cache/` to `.gitignore`.
-- `CREDITS.md`: add OpenStreetMap (ODbL) with the extract date.
-- `CLAUDE.md`: in "Terrain is data", add the `osm` block and `surface.u8`.
-- Design spec §6.5: note that the M2 splat map starts as this glacier mask.
+- `public/terrain/` is generated and git-ignored. Re-bake Mera with `npm run terrain:mera` after this lands. The deploy workflow bakes from the configs and reads the committed GeoJSON, so nothing extra is downloaded.
+- `tools/terrain/data` is in `.prettierignore` (generated, minified data).
+- `CREDITS.md`, `CLAUDE.md` and design spec §6.5 are updated.
 
 ## 8. Open questions
 
