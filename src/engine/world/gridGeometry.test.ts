@@ -95,6 +95,26 @@ describe('buildGridGeometry', () => {
     );
     expect(snow.colors[0]).toBeGreaterThan(rock.colors[0] * 1.5);
   });
+
+  it('colours by the glacier mask instead of altitude when one is given', () => {
+    const mask = (v: number) => ({
+      samplesX: 5,
+      samplesZ: 5,
+      spacingM: 2,
+      originX: 100,
+      originZ: 200,
+      data: new Uint8Array(25).fill(v),
+    });
+    const rock = buildGridGeometry(args({ skirtDepthM: 0 }));
+    // 5000 m is below the snowline: rock without a mask, snow on a glacier.
+    const onGlacier = buildGridGeometry(args({ skirtDepthM: 0, glacier: mask(1) }));
+    expect(onGlacier.colors[0]).toBeGreaterThan(rock.colors[0] * 1.5);
+    // 5350 m is snow without a mask, rock off a glacier.
+    const offGlacier = buildGridGeometry(
+      args({ skirtDepthM: 0, heights: new Float32Array(25).fill(5350), glacier: mask(0) }),
+    );
+    expect(offGlacier.colors[0]).toBeCloseTo(rock.colors[0], 5);
+  });
 });
 
 describe('buildGridGeometry stripes', () => {

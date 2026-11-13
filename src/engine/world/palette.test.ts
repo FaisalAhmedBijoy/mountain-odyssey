@@ -10,18 +10,25 @@ const lin = (rgb: readonly number[]) => rgb.map(srgbToLinear);
 describe('terrainColor', () => {
   it('himalaya reproduces the surface colours (rock, snow)', () => {
     const p = linearPalette(GAME_CONFIG.biomes.himalaya.palette);
-    expect(terrainColor(10, 5000, surface, p)).toEqual(lin(SURFACE_COLORS.rock));
-    expect(terrainColor(10, 5350, surface, p)).toEqual(lin(SURFACE_COLORS.snow));
-    expect(terrainColor(45, 6000, surface, p)).toEqual(lin(SURFACE_COLORS.rock));
+    expect(terrainColor(10, 5000, null, surface, p)).toEqual(lin(SURFACE_COLORS.rock));
+    expect(terrainColor(10, 5350, null, surface, p)).toEqual(lin(SURFACE_COLORS.snow));
+    expect(terrainColor(45, 6000, null, surface, p)).toEqual(lin(SURFACE_COLORS.rock));
+  });
+
+  it('himalaya follows the glacier mask when there is one', () => {
+    const p = linearPalette(GAME_CONFIG.biomes.himalaya.palette);
+    expect(terrainColor(10, 5000, true, surface, p)).toEqual(lin(SURFACE_COLORS.snow));
+    expect(terrainColor(30, 5000, true, surface, p)).toEqual(lin(SURFACE_COLORS.ice));
+    expect(terrainColor(10, 6000, false, surface, p)).toEqual(lin(SURFACE_COLORS.rock));
   });
 
   it('tropical-hills picks grass, forest and soil by slope', () => {
     const p = linearPalette(GAME_CONFIG.biomes['tropical-hills'].palette);
     const bands = GAME_CONFIG.biomes['tropical-hills'].palette.bands;
-    expect(terrainColor(5, 600, surface, p)).toEqual(lin(bands[0].color));
-    expect(terrainColor(20, 600, surface, p)).toEqual(lin(bands[1].color));
-    expect(terrainColor(50, 600, surface, p)).toEqual(lin(bands[2].color));
-    expect(terrainColor(15, 600, surface, p)).toEqual(lin(bands[1].color));
+    expect(terrainColor(5, 600, null, surface, p)).toEqual(lin(bands[0].color));
+    expect(terrainColor(20, 600, null, surface, p)).toEqual(lin(bands[1].color));
+    expect(terrainColor(50, 600, null, surface, p)).toEqual(lin(bands[2].color));
+    expect(terrainColor(15, 600, null, surface, p)).toEqual(lin(bands[1].color));
   });
 });
 
@@ -41,17 +48,17 @@ describe('palette stripes', () => {
       kind: 'slope',
       bands: [{ maxSlopeDeg: 90, color: [0.5, 0.5, 0.5] }],
     });
-    const plain = terrainColor(5, 100, surface, base)[0];
-    const crest = terrainColor(5, 100, surface, striped)[0];
-    const trough = terrainColor(5, 100.5, surface, striped)[0];
+    const plain = terrainColor(5, 100, null, surface, base)[0];
+    const crest = terrainColor(5, 100, null, surface, striped)[0];
+    const trough = terrainColor(5, 100.5, null, surface, striped)[0];
     expect(crest).toBeCloseTo(plain, 9);
     expect(trough).toBeCloseTo(plain * 0.8, 9);
-    expect(terrainColor(5, 101, surface, striped)[0]).toBeCloseTo(crest, 9);
+    expect(terrainColor(5, 101, null, surface, striped)[0]).toBeCloseTo(crest, 9);
   });
 
   it('leaves other bands unstriped', () => {
-    expect(terrainColor(20, 100.5, surface, striped)).toEqual(
-      terrainColor(20, 100, surface, striped),
+    expect(terrainColor(20, 100.5, null, surface, striped)).toEqual(
+      terrainColor(20, 100, null, surface, striped),
     );
   });
 

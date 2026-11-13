@@ -1,8 +1,11 @@
 import { linearPalette, terrainColor, withoutStripes, type TerrainPalette } from './palette';
 import type { MapBounds } from './mapMath';
 import type { SurfaceRules } from './surface';
+import { glacierAt, type SurfaceMask } from './surfaceMask';
 
 export interface GridGeometryArgs {
+  /** Glacier mask around this grid (spec 002); plain data, cloned into the worker. */
+  glacier?: SurfaceMask;
   heights: Float32Array;
   samplesX: number;
   samplesZ: number;
@@ -79,7 +82,8 @@ export function buildGridGeometry(a: GridGeometryArgs): GridGeometryData {
     normals[o + 1] = 1 / len;
     normals[o + 2] = gz / len;
     const slopeDeg = (Math.acos(1 / len) * 180) / Math.PI;
-    const c = terrainColor(slopeDeg, y, a.surface, palette);
+    const onGlacier = a.glacier ? glacierAt(a.glacier, x, z) : null;
+    const c = terrainColor(slopeDeg, y, onGlacier, a.surface, palette);
     const shade = 0.9 + 0.1 * hash2(x, z);
     colors[o] = c[0] * shade;
     colors[o + 1] = c[1] * shade;

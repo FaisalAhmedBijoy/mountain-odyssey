@@ -66,4 +66,32 @@ describe('buildMapImage', () => {
     );
     expect(brightness(pixel(snow, 4, 4))).toBeGreaterThan(brightness(pixel(rock, 4, 4)));
   });
+
+  it('paints glacier samples as snow when a mask on the backdrop grid is given', () => {
+    const flat = backdrop(() => 5000); // below the snowline: rock without a mask
+    const data = new Uint8Array(n * n);
+    data[4 * n + 4] = 1;
+    const glacier = { samplesX: n, samplesZ: n, spacingM: 64, originX: 0, originZ: 0, data };
+    const img = buildMapImage(flat, himalaya, surface, glacier);
+    expect(brightness(pixel(img, 4, 4))).toBeGreaterThan(brightness(pixel(img, 3, 4)) * 1.5);
+  });
+
+  it('rejects a mask that is not on the backdrop grid', () => {
+    const glacier = {
+      samplesX: n + 1,
+      samplesZ: n + 1,
+      spacingM: 64,
+      originX: 0,
+      originZ: 0,
+      data: new Uint8Array((n + 1) ** 2),
+    };
+    expect(() =>
+      buildMapImage(
+        backdrop(() => 5000),
+        himalaya,
+        surface,
+        glacier,
+      ),
+    ).toThrow(/backdrop grid/);
+  });
 });

@@ -1,4 +1,4 @@
-import { SURFACE_COLORS, surfaceAt, type Surface, type SurfaceRules } from './surface';
+import { classifySurface, SURFACE_COLORS, type Surface, type SurfaceRules } from './surface';
 
 type Rgb = readonly [number, number, number];
 
@@ -60,14 +60,16 @@ export function withoutStripes(p: TerrainPalette): TerrainPalette {
   return { kind: 'slope', bands: p.bands };
 }
 
-/** Linear-space vertex colour for a terrain point. */
+/** Linear-space vertex colour for a terrain point. `onGlacier` is null when there is no mask. */
 export function terrainColor(
   slopeDeg: number,
   altitudeM: number,
+  onGlacier: boolean | null,
   surface: SurfaceRules,
   p: LinearPalette,
 ): Rgb {
-  if (p.kind === 'surface') return p.colors[surfaceAt(slopeDeg, altitudeM, surface)];
+  if (p.kind === 'surface')
+    return p.colors[classifySurface(slopeDeg, altitudeM, onGlacier, surface)];
   let index = p.bands.findIndex((b) => slopeDeg < b.maxSlopeDeg);
   if (index < 0) index = p.bands.length - 1;
   const color = p.bands[index].color;

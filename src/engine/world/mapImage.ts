@@ -1,5 +1,6 @@
 import { linearPalette, terrainColor, withoutStripes, type TerrainPalette } from './palette';
 import type { SurfaceRules } from './surface';
+import type { SurfaceMask } from './surfaceMask';
 import type { Backdrop } from './terrainData';
 
 export interface MapImage {
@@ -27,7 +28,11 @@ export function buildMapImage(
   b: Backdrop,
   palette: TerrainPalette,
   surface: SurfaceRules,
+  glacier?: SurfaceMask,
 ): MapImage {
+  if (glacier && (glacier.samplesX !== b.samples || glacier.samplesZ !== b.samples)) {
+    throw new Error('Glacier mask for the map must be on the backdrop grid');
+  }
   const n = b.samples;
   const s = b.spacingM;
   const pal = linearPalette(withoutStripes(palette));
@@ -43,7 +48,8 @@ export function buildMapImage(
       const ny = 1 / len;
       const nz = -dz / len;
       const slopeDeg = (Math.acos(ny) * 180) / Math.PI;
-      const color = terrainColor(slopeDeg, h(c, r), surface, pal);
+      const onGlacier = glacier ? glacier.data[r * n + c] === 1 : null;
+      const color = terrainColor(slopeDeg, h(c, r), onGlacier, surface, pal);
       const lit = nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2];
       const shade = Math.min(1, Math.max(SHADE_MIN, SHADE_BASE + SHADE_GAIN * lit));
       const o = (r * n + c) * 4;
