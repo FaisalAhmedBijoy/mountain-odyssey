@@ -174,7 +174,8 @@ export class Game {
     const gear = gearOf(o.loadout);
     const packKg = packWeightKg(o.loadout);
     const manifest = await loadManifest(`${o.terrainBaseUrl}/manifest.json`);
-    // Fetched in parallel with the imagery; the await below rethrows a failure.
+    // Started now, so it downloads while physics initialises and the imagery loads;
+    // the later await rethrows a failure.
     const glacierLoad = loadSurfaceMask(o.terrainBaseUrl, manifest);
     glacierLoad.catch(() => undefined);
     const environment = new Environment(
@@ -188,10 +189,6 @@ export class Game {
     const physics = await PhysicsWorld.create(cfg.physics.gravity);
     this.cleanup.push(() => physics.dispose());
     const sampler = new TerrainSampler(manifest);
-    const glacier = await glacierLoad;
-    sampler.setSurfaceMask(glacier);
-    const builder: MeshBuilder =
-      o.useWorker === false ? new SyncMeshBuilder() : new WorkerMeshBuilder();
     const imageUrl = imageryUrl(o.terrainBaseUrl, manifest);
     let imagery: THREE.Texture | null = null;
     if (imageUrl) {
@@ -201,6 +198,18 @@ export class Game {
         console.warn('Terrain imagery failed to load; using the biome palette only.', err);
       }
     }
+    // Awaited after the imagery so both downloads overlap, and before the mesh worker
+    // exists; on failure only the imagery texture needs releasing.
+    let glacier: Awaited<typeof glacierLoad>;
+    try {
+      glacier = await glacierLoad;
+    } catch (err) {
+      imagery?.dispose();
+      throw err;
+    }
+    sampler.setSurfaceMask(glacier);
+    const builder: MeshBuilder =
+      o.useWorker === false ? new SyncMeshBuilder() : new WorkerMeshBuilder();
     const material = createTerrainMaterial(imagery, cfg.terrain.imagery);
     const chunks = new ChunkManager({
       manifest,
