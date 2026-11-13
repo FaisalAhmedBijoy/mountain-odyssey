@@ -6,7 +6,7 @@
 
 **Architecture:**
 - **One-time extract.** A tool script reads the Geofabrik Nepal extract once and writes the glacier polygons near Mera to a small GeoJSON, which is committed to the repo.
-- **Bake.** The bake projects those polygons onto the terrain grid and rasterises them into `surface.u8` (1 = glacier). It records the mask in the manifest.
+- **Bake.** The bake projects those polygons onto the terrain grid and rasterises them into `surface.bits` (1 = glacier). It records the mask in the manifest.
 - **Engine.** It loads the mask once. It passes the mask to:
   - `TerrainSampler`, for climb gating in `Player`;
   - each tile's mesh build, as a crop;
@@ -21,8 +21,8 @@
 ## Global Constraints
 
 - Work on branch `osm-glacier`, created from `dev`.
-- Inside a glacier, ground is snow below `iceMinSlopeDeg` (25°) and ice from it. Ground at `rockMinSlopeDeg` (40°) or steeper is rock everywhere. Outside glaciers, ground is rock. Without a mask, `surfaceAt` is unchanged.
-- Mask file: `surface.u8`, one byte per sample, row-major, row = z (north = row 0, matching the tiles), square, `samples = size / spacingM + 1`. Mera uses `maskSpacingM: 8` (1537 × 1537). Synthetic test-peak uses 32 m.
+- Inside a glacier, ground is snow below `iceMinSlopeDeg` (25°) and ice from it. Steep glacier walls are ice too (decision 5). Outside glaciers, ground is rock. Without a mask, `surfaceAt` is unchanged.
+- Mask file: `surface.bits`, packed 1 bit per sample (bit `i & 7`, LSB first, of byte `i >> 3`, `i = row * samples + col`), length `ceil(samples² / 8)`, row = z (north = row 0, matching the tiles), square, `samples = size / spacingM + 1`. Mera uses `maskSpacingM: 8` (1537 × 1537). Synthetic test-peak uses 32 m.
 - World axes: x = east, z = south. Lon/lat → metric uses the DEM's transform:
   - `x = (lon − centerLon) × m_per_deg_lon(centerLat)`
   - `z = (centerLat − lat) × 111320`
@@ -41,6 +41,8 @@
 2. **Rasterising is a numpy scanline fill** (even-odd per polygon, then OR across polygons), not `rasterio.features`. It avoids GeoTIFF transform-orientation pitfalls and is easy to test.
 3. **The backdrop and the map use the mask resampled to the backdrop grid** (`sampleMask`, nearest sample). Tiles get an exact crop (`cropMask`). The full mask is not structured-cloned into the worker on every backdrop rebuild.
 4. **The synthetic test-peak mask is a 200 m disc around the mound** at x = +512, z = −512. It is asymmetric, so axis mix-ups fail the contract test.
+5. **On a glacier, steep ground is ice, not rock.** Grabbable walls start at 50° and the M1 rule made everything at 40° or steeper rock, so no wall could ever need an ice axe or crampons. With a mask, glacier walls are ice; the no-mask `surfaceAt` rule is unchanged.
+6. **The mask is bit-packed (`surface.bits`, 1 bit per sample, LSB first) and fetched in parallel with the imagery**: Mera's mask is 295 KB instead of 2.36 MB.
 
 ## File map
 
@@ -51,7 +53,7 @@
 | `tools/terrain/data/mera-peak-glaciers.geojson` | create (generated) | committed glacier polygons near Mera |
 | `tools/terrain/terrain_lib.py` (+ test) | modify | `lonlat_to_xz`, `project_polygons`, `rasterise_polygons`, `synthetic_glacier_polygons`, `write_terrain(surface_mask=…)` |
 | `tools/terrain/bake.py` (+ test) | modify | `bake_glacier_mask` from the config `osm` block; synthetic mask |
-| `src/engine/world/__fixtures__/test-peak-mini/` | regenerate | gains `surface.u8` and `surfaceMask` |
+| `src/engine/world/__fixtures__/test-peak-mini/` | regenerate | gains `surface.bits` and `surfaceMask` |
 | `src/engine/world/surfaceMask.ts` (+ test) | create | `SurfaceMask`, `glacierAt`, `cropMask`, `sampleMask` |
 | `src/engine/world/surface.ts` (+ test) | modify | `surfaceWithMask`, `classifySurface` |
 | `src/engine/world/terrainData.ts` (+ test) | modify | `surfaceMask` manifest field, `loadSurfaceMask` |
@@ -309,7 +311,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 2: Rasterise glaciers in the bake and write `surface.u8`
+### Task 2: Rasterise glaciers in the bake and write `surface.bits`
 
 **Files:**
 - Modify: `tools/terrain/terrain_lib.py`
@@ -327,7 +329,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `terrain_lib.synthetic_glacier_polygons(center_xz=(512.0, -512.0), radius_m=200.0, segments=64)`
   - `write_terrain(..., surface_mask=None, surface_mask_spacing_m=None, surface_mask_source="")`
   - `bake.bake_glacier_mask(cfg, spec, config_dir) -> tuple[np.ndarray | None, float, str, str]` returning (mask, spacing, source, attribution)
-  - The manifest field `"surfaceMask": {"file": "surface.u8", "samples": int, "spacingM": float, "source": str}`
+  - The manifest field `"surfaceMask": {"file": "surface.bits", "samples": int, "spacingM": float, "source": str}`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -378,8 +380,8 @@ def test_bake_synthetic_writes_an_asymmetric_glacier_mask(tmp_path):
     spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=16, spacing_m=64.0)
     manifest = bake_synthetic(str(tmp_path), spec, backdrop_spacing_m=128.0, validate=False)
     sm = manifest["surfaceMask"]
-    assert sm["file"] == "surface.u8" and sm["spacingM"] == 32.0 and sm["samples"] == 65
-    data = np.frombuffer((tmp_path / "surface.u8").read_bytes(), dtype=np.uint8).reshape(65, 65)
+    assert sm["file"] == "surface.bits" and sm["spacingM"] == 32.0 and sm["samples"] == 65
+    data = np.frombuffer((tmp_path / "surface.bits").read_bytes(), dtype=np.uint8).reshape(65, 65)
 
     def at(x, z):
         return int(data[int(round((z + 1024) / 32)), int(round((x + 1024) / 32))])
@@ -430,16 +432,16 @@ def test_mera_config_points_at_the_committed_glaciers():
     assert data["type"] == "FeatureCollection" and len(data["features"]) > 0
 ```
 
-`Path` and `json` are already imported in the test file. Also, in `test_contract_fixture_matches_current_bake`, add `"surface.u8"` to the compared file list:
+`Path` and `json` are already imported in the test file. Also, in `test_contract_fixture_matches_current_bake`, add `"surface.bits"` to the compared file list:
 
 ```python
-    for name in ["backdrop.u16", "surface.u8", *(f"tiles/{tx}_{tz}.u16" for tx in range(2) for tz in range(2))]:
+    for name in ["backdrop.u16", "surface.bits", *(f"tiles/{tx}_{tz}.u16" for tx in range(2) for tz in range(2))]:
 ```
 
 - [ ] **Step 2: Run them to verify they fail**
 
 Run: `.venv/bin/python -m pytest tools/terrain -q`
-Expected: FAIL. You will see import errors for the new names, and the contract fixture lacks `surface.u8`.
+Expected: FAIL. You will see import errors for the new names, and the contract fixture lacks `surface.bits`.
 
 - [ ] **Step 3: Implement in `terrain_lib.py`**
 
@@ -521,9 +523,9 @@ Before `(out / "manifest.json").write_text(...)` add:
         n = int(round((h.shape[0] - 1) * spacing_m / surface_mask_spacing_m)) + 1
         if surface_mask.shape != (n, n) or surface_mask.dtype != np.uint8:
             raise ValueError(f"surface mask must be uint8 {n}x{n}, got {surface_mask.dtype} {surface_mask.shape}")
-        (out / "surface.u8").write_bytes(np.ascontiguousarray(surface_mask).tobytes())
+        (out / "surface.bits").write_bytes(np.ascontiguousarray(surface_mask).tobytes())
         manifest["surfaceMask"] = {
-            "file": "surface.u8",
+            "file": "surface.bits",
             "samples": n,
             "spacingM": float(surface_mask_spacing_m),
             "source": surface_mask_source,
@@ -608,13 +610,13 @@ npm test
 
 Expected:
 - All Python tests pass.
-- The fixture dir gains `surface.u8` (65 × 65 = 4225 bytes), and `manifest.json` gains `surfaceMask`.
+- The fixture dir gains `surface.bits` (ceil(65² / 8) = 529 bytes), and `manifest.json` gains `surfaceMask`.
 - `npm test` still passes, because the TS parser ignores unknown keys.
 
 - [ ] **Step 7: Bake test-peak and check**
 
-Run: `npm run terrain:test && ls -la public/terrain/test-peak/surface.u8`
-Expected: 4225 bytes (2048 m / 32 m + 1 = 65 samples per side).
+Run: `npm run terrain:test && ls -la public/terrain/test-peak/surface.bits`
+Expected: 529 bytes (2048 m / 32 m + 1 = 65 samples per side, ceil(65² / 8)).
 
 - [ ] **Step 8: Commit**
 
@@ -636,7 +638,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Modify: `src/engine/world/terrainContract.test.ts`
 
 **Interfaces:**
-- Consumes: the manifest `surfaceMask` field and `surface.u8` from Task 2.
+- Consumes: the manifest `surfaceMask` field and `surface.bits` from Task 2.
 - Produces:
   - `interface SurfaceMask { samplesX: number; samplesZ: number; spacingM: number; originX: number; originZ: number; data: Uint8Array }`
   - `glacierAt(m: SurfaceMask, x: number, z: number): boolean | null`
@@ -756,9 +758,9 @@ describe('surface mask', () => {
   const size = 2048;
   it('accepts a valid entry that covers the square', () => {
     expect(
-      parseSurfaceMask({ file: 'surface.u8', samples: 65, spacingM: 32, source: 's' }, size),
-    ).toEqual({ file: 'surface.u8', samples: 65, spacingM: 32, source: 's' });
-    expect(parseSurfaceMask({ file: 'surface.u8', samples: 65, spacingM: 32 }, size)?.source).toBe(
+      parseSurfaceMask({ file: 'surface.bits', samples: 65, spacingM: 32, source: 's' }, size),
+    ).toEqual({ file: 'surface.bits', samples: 65, spacingM: 32, source: 's' });
+    expect(parseSurfaceMask({ file: 'surface.bits', samples: 65, spacingM: 32 }, size)?.source).toBe(
       '',
     );
     expect(parseSurfaceMask(undefined, size)).toBeUndefined();
@@ -766,10 +768,10 @@ describe('surface mask', () => {
   it('drops malformed entries', () => {
     for (const bad of [
       { file: '../x', samples: 65, spacingM: 32 },
-      { file: 'surface.u8', samples: 1, spacingM: 32 },
-      { file: 'surface.u8', samples: 65, spacingM: 0 },
-      { file: 'surface.u8', samples: 64, spacingM: 32 }, // does not cover 2048 m
-      { file: 'surface.u8', samples: 65.5, spacingM: 32 },
+      { file: 'surface.bits', samples: 1, spacingM: 32 },
+      { file: 'surface.bits', samples: 65, spacingM: 0 },
+      { file: 'surface.bits', samples: 64, spacingM: 32 }, // does not cover 2048 m
+      { file: 'surface.bits', samples: 65.5, spacingM: 32 },
     ]) {
       expect(parseSurfaceMask(bad, size)).toBeUndefined();
     }
@@ -777,7 +779,7 @@ describe('surface mask', () => {
   it('loads the bytes and checks their count', async () => {
     const m = parseManifest({
       ...minimalManifest(),
-      surfaceMask: { file: 'surface.u8', samples: 3, spacingM: 1024, source: '' },
+      surfaceMask: { file: 'surface.bits', samples: 3, spacingM: 1024, source: '' },
     });
     const ok = (async () => new Response(new Uint8Array(9).fill(1))) as typeof fetch;
     const mask = await loadSurfaceMask('/t', m, ok);
@@ -818,7 +820,7 @@ Append to `src/engine/world/terrainContract.test.ts` (add the imports `glacierAt
 describe('Python bake -> glacier mask contract', () => {
   it('puts the synthetic glacier on the north-east mound only', async () => {
     const m = parseManifest(JSON.parse(readFileSync(`${dir}manifest.json`, 'utf8')));
-    const bytes = readFileSync(`${dir}surface.u8`);
+    const bytes = readFileSync(`${dir}surface.bits`);
     const fetchFn = (async () => new Response(new Uint8Array(bytes))) as typeof fetch;
     const mask = (await loadSurfaceMask('/fixture', m, fetchFn))!;
     expect(glacierAt(mask, 512, -512)).toBe(true);
@@ -1364,7 +1366,7 @@ Expected: FAIL, because the methods and getter are missing.
 npm test && npm run typecheck && npm run lint && npm run e2e
 ```
 
-Expected: all green. The test-peak e2e now loads a `surface.u8` (baked by `pree2e`) and must show no errors. The existing Player tests use a manifest without a mask, so they are unchanged.
+Expected: all green. The test-peak e2e now loads a `surface.bits` (baked by `pree2e`) and must show no errors. The existing Player tests use a manifest without a mask, so they are unchanged.
 
 - [ ] **Step 5: Commit**
 
@@ -1388,7 +1390,7 @@ Run: `npm run terrain:mera` (needs network: DEM and imagery, a few minutes).
 
 Expected:
 - the line `Glacier mask: N polygons, X km2 (Y % of the square)`, with X roughly 20–40 km²;
-- `public/terrain/mera-peak/surface.u8` of 1537 × 1537 = 2,362,369 bytes;
+- `public/terrain/mera-peak/surface.bits` of ceil(1537² / 8) = 295,297 bytes;
 - the manifest attribution ends with `· © OpenStreetMap contributors`.
 
 - [ ] **Step 2: Look at it**
@@ -1424,13 +1426,13 @@ Describe what you saw in the task report. If the glacier sits visibly offset fro
 
 After the "Splat map tiles" line, add:
 
-> Update (2026-11-13, spec 002): the first surface map is a binary glacier mask (`surface.u8`) rasterised from OpenStreetMap glacier polygons; soft splat weights remain future work.
+> Update (2026-11-13, spec 002): the first surface map is a binary glacier mask (`surface.bits`) rasterised from OpenStreetMap glacier polygons; soft splat weights remain future work.
 
 - [ ] **Step 3: `CLAUDE.md`**
 
 In "Terrain is data, not code", add a bullet:
 
-> - A bake config with an `"osm"` block (`glaciers`: a committed GeoJSON extracted once with `tools/terrain/extract_glaciers.py` from a pinned Geofabrik extract; `maskSpacingM`) also writes `surface.u8` and `"surfaceMask"` in the manifest: 1 = glacier, row = z. The engine's `classifySurface` then makes ground snow/ice only on glaciers (rock off them and on slopes ≥ 40°); without a mask it falls back to `surfaceAt`. `TerrainSampler.onGlacierAt` feeds climb gating, tiles get `cropMask` crops, and the backdrop and map get `ChunkManager.backdropGlacier`. The attribution appends `© OpenStreetMap contributors`.
+> - A bake config with an `"osm"` block (`glaciers`: a committed GeoJSON extracted once with `tools/terrain/extract_glaciers.py` from a pinned Geofabrik extract; `maskSpacingM`) also writes `surface.bits` and `"surfaceMask"` in the manifest: 1 = glacier, row = z. The engine's `classifySurface` then makes ground snow/ice only on glaciers (snow below 25°, ice from 25° including steep glacier walls; rock off glaciers); without a mask it falls back to `surfaceAt`. `TerrainSampler.onGlacierAt` feeds climb gating, tiles get `cropMask` crops, and the backdrop and map get `ChunkManager.backdropGlacier`. The attribution appends `© OpenStreetMap contributors`.
 
 Also add `docs/specs/specs/002-osm-glacier-surfaces.md` to the project status as implemented, in one short sentence.
 
@@ -1479,4 +1481,4 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - §6 tests: Tasks 1–5.
   - §7 deploy notes: no CI download (decision 1); `CREDITS`, `CLAUDE.md` and design spec in Task 7.
   - Test-peak synthetic mask: Task 2.
-- **Name consistency across tasks:** `SurfaceMask`, `glacierAt`, `cropMask`, `sampleMask`, `classifySurface`, `surfaceWithMask`, `loadSurfaceMask`, `parseSurfaceMask`, `onGlacierAt`, `setSurfaceMask`, `backdropGlacier`, `bake_glacier_mask`, `rasterise_polygons`, `project_polygons`, `lonlat_to_xz`, `synthetic_glacier_polygons`, `surface.u8`, `surfaceMask`.
+- **Name consistency across tasks:** `SurfaceMask`, `glacierAt`, `cropMask`, `sampleMask`, `classifySurface`, `surfaceWithMask`, `loadSurfaceMask`, `parseSurfaceMask`, `onGlacierAt`, `setSurfaceMask`, `backdropGlacier`, `bake_glacier_mask`, `rasterise_polygons`, `project_polygons`, `lonlat_to_xz`, `synthetic_glacier_polygons`, `surface.bits`, `surfaceMask`.

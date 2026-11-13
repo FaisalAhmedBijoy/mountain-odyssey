@@ -336,7 +336,7 @@ Each engine system exposes a small public interface (`init`, `update(dt)`, `disp
 3. Export:
    - Raw little-endian `uint16` heightmap tiles (`.u16`, 257 × 257 samples; neighbouring tiles share edge samples). 16-bit PNG was rejected because browsers cannot decode it losslessly through canvas.
    - Splat map tiles (rock / snow / ice weights) — added in M2. M1 classifies surfaces at runtime from slope and altitude.
-     > Update (2026-11-13, spec 002): the first surface map is a binary glacier mask (`surface.u8`) rasterised from OpenStreetMap glacier polygons; soft splat weights remain future work.
+     > Update (2026-11-13, spec 002): the first surface map is a binary glacier mask (`surface.bits`) rasterised from OpenStreetMap glacier polygons; soft splat weights remain future work.
    - Route spline, camp positions and fixed-rope placements (JSON).
 4. Write a manifest (`public/terrain/<mountain-id>/manifest.json`) with tile grid, scale and checksums.
 

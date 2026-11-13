@@ -25,6 +25,7 @@ On Mera this puts snow and ice in a flat band around the mountain. It ignores wh
 
 **Goal.** Snow and ice sit where the Mera glaciers are in OSM, so:
 - the ice-axe and crampon rules apply on the real glacier;
+- on a glacier: snow below 25°, ice from 25° (steep walls included); off a glacier: rock;
 - the terrain colour and the map show its real shape.
 
 ## 3. Scope
@@ -52,7 +53,7 @@ Out of scope: see the instruction.
 | `mapImage.ts` | Colours from the backdrop heights | Samples the mask at each map pixel |
 | `TerrainSampler` | Heights, normals, slope | Adds `onGlacierAt(x, z): boolean | null` |
 | `terrainData.ts` manifest parser | — | Optional `surfaceMask` field |
-| `tools/terrain/bake.py` | DEM, imagery, routes | Optional `osm` block, rasterising, writing `surface.u8` |
+| `tools/terrain/bake.py` | DEM, imagery, routes | Optional `osm` block, rasterising, writing `surface.bits` |
 | Attribution | Copernicus DEM · Sentinel | Adds `· © OpenStreetMap contributors` |
 
 ### 4.2 Gameplay impact on Mera
@@ -68,7 +69,7 @@ Out of scope: see the instruction.
 - **Edge sharpness.** At 8 m resolution, colour edges at the glacier rim will be visibly hard on close tiles. Soft blending is out of scope; check it in the playtest.
 - **Large download.** The 415 MB extract is read once by `tools/terrain/extract_glaciers.py`, and only the ~30 KB GeoJSON is committed, so bakes and CI download nothing extra. Re-extract deliberately to update the outlines.
 - **Licence.** ODbL. A produced work (our mask) needs attribution, not share-alike of the game. The bake records the source and date in the manifest.
-- **Worker message size.** Each tile build sends only its own mask crop (65 × 65 bytes at 8 m over a 512 m tile), not the whole mask.
+- **Worker message size.** Each tile build sends only its own mask crop (a 67 × 67-sample crop, ±1 margin, at 8 m over a 512 m tile), not the whole mask.
 
 ## 5. Design
 
@@ -97,13 +98,14 @@ Extract once with `extract_glaciers.py`; the bake rasterises the committed GeoJS
    It writes `tools/terrain/data/mera-peak-glaciers.geojson` (38 polygons, about 30 KB), which is committed.
 2. The bake projects each ring to the local metric grid with the same transform the DEM uses (`GridSpec`).
 3. It rasterises at `maskSpacingM` with a numpy scanline fill (even-odd per polygon, then OR across polygons). Inner rings make holes.
-4. It writes `surface.u8`:
-   - row-major, row = z (north first), matching the tile convention;
-   - `samples × samples` bytes, with `samples = size / maskSpacingM + 1` (1537 × 1537 on Mera);
-   - value 1 = glacier, 0 = not glacier.
+4. It writes `surface.bits`, a packed bit file:
+   - sample index `i = row * samples + col`, row = z (north first), matching the tile convention;
+   - the bit for sample `i` is bit `i & 7` (least significant first) of byte `i >> 3`;
+   - `samples = size / maskSpacingM + 1` (1537 on Mera), so the length is `ceil(samples² / 8)` bytes (295,297 on Mera);
+   - bit 1 = glacier, 0 = not glacier.
 5. Manifest:
    ```json
-   "surfaceMask": { "file": "surface.u8", "samples": N, "spacingM": 8, "source": "OSM natural=glacier, nepal-261112" }
+   "surfaceMask": { "file": "surface.bits", "samples": N, "spacingM": 8, "source": "Geofabrik nepal-261112.osm.pbf" }
    ```
    It appends `" · © OpenStreetMap contributors"` to `attribution`.
 6. It prints the glacier area (km²) and the share of the square, and warns if it is 0. Mera: 26.8 km², 17.7 % of the 12.3 km square.
@@ -115,9 +117,8 @@ Extract once with `extract_glaciers.py`; the bake rasterises the committed GeoJS
 In `surface.ts`:
 
 ```ts
-/** With a baked glacier mask (spec 002): snow/ice only on glaciers, steep ground is rock. */
+/** With a baked glacier mask (spec 002): glaciers are snow below 25° and ice from 25° (steep glacier walls too); everything else is rock. */
 export function surfaceWithMask(slopeDeg: number, onGlacier: boolean, rules: SurfaceRules): Surface {
-  if (slopeDeg >= rules.rockMinSlopeDeg) return 'rock';
   if (!onGlacier) return 'rock';
   return slopeDeg >= rules.iceMinSlopeDeg ? 'ice' : 'snow';
 }
@@ -130,13 +131,13 @@ export function classifySurface(slopeDeg: number, altitudeM: number, onGlacier: 
 
 - `TerrainSampler.onGlacierAt(x, z)` uses the nearest mask sample. It returns `null` when the manifest has no mask, or when the point is outside the mask.
 - `Player.senseWall`, `terrainColor`, `gridGeometry` and `mapImage` call `classifySurface`.
-- The mesh worker receives `{ maskCrop: Uint8Array, cropOrigin, cropSpacingM }` with each tile request, or `null`.
-- The backdrop mesh and the map read the full mask on the main thread.
+- The mesh worker receives `glacier: SurfaceMask` (a `cropMask` crop) inside the build args, or `null`.
+- The backdrop mesh and the map use `ChunkManager.backdropGlacier` (`sampleMask` on the backdrop grid), not the full mask.
 
 ### 5.4 Data flow
 
 ```
-bake.py ─► surface.u8 + manifest.surfaceMask
+bake.py ─► surface.bits + manifest.surfaceMask
                 │
 Game.init ─► loadSurfaceMask() ─► TerrainSampler (onGlacierAt)
                 │                    ├─► Player.senseWall ─► climbRequirement
@@ -148,7 +149,7 @@ Game.init ─► loadSurfaceMask() ─► TerrainSampler (onGlacierAt)
 
 Unit tests (Vitest):
 - `surfaceWithMask`:
-  - rock at 40° or more, on or off a glacier;
+  - ice on steep glacier walls (45° and 60°);
   - snow on a glacier below 25°;
   - ice on a glacier at 25° or more;
   - rock off a glacier at any altitude.
@@ -156,14 +157,14 @@ Unit tests (Vitest):
 - `TerrainSampler.onGlacierAt`:
   - nearest-sample lookup with an asymmetric mask (catches row and column swaps);
   - `null` outside the mask and with no mask.
-- The manifest parser accepts and validates `surfaceMask` (the byte count equals `samples²` and `(samples − 1) × spacingM` equals the terrain size), and rejects bad values.
+- The manifest parser accepts and validates `surfaceMask` (the byte count equals `ceil(samples² / 8)` and `(samples − 1) × spacingM` equals the terrain size), and rejects bad values.
 - `gridGeometry` uses the mask crop: a vertex on a glacier gets the snow colour, and one off a glacier gets the rock colour, at the same height and slope.
 - `mapImage` respects the mask.
 
 Python tests (pytest):
 - Rasterising a square ring and a ring with a hole gives the expected cells at known coordinates. Check orientation: north is row 0.
 - Multipolygon outer and inner rings.
-- The synthetic test-peak bake writes `surface.u8` and the manifest entry.
+- The synthetic test-peak bake writes `surface.bits` and the manifest entry.
 - A missing `osm` block writes no mask and changes no attribution.
 
 E2E (Playwright): the test-peak smoke test still passes, and the attribution text appears unchanged for test-peak.
@@ -192,3 +193,5 @@ Manual (playtest checklist):
 2. **Rasterising is a numpy scanline fill** (even-odd per polygon, then OR across polygons), not `rasterio.features`. It avoids GeoTIFF transform-orientation pitfalls and is easy to test.
 3. **The backdrop and the map use the mask resampled to the backdrop grid** (`sampleMask`, nearest sample). Tiles get an exact crop (`cropMask`). The full mask is not structured-cloned into the worker on every backdrop rebuild.
 4. **The synthetic test-peak mask is a 200 m disc around the mound** at x = +512, z = −512. It is asymmetric, so axis mix-ups fail the contract test.
+5. **On a glacier, steep ground is ice, not rock.** Grabbable walls start at 50° and the M1 rule made everything at 40° or steeper rock, so no wall could ever need an ice axe or crampons. With a mask, glacier walls are ice; the no-mask `surfaceAt` rule is unchanged.
+6. **The mask is bit-packed (`surface.bits`, 1 bit per sample, LSB first) and fetched in parallel with the imagery**: Mera's mask is 295 KB instead of 2.36 MB.
