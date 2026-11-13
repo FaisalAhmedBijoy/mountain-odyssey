@@ -1,0 +1,2 @@
+# Only for tools/terrain/extract_glaciers.py (one-time extraction). Not needed to bake.
+osmium>=3.7
