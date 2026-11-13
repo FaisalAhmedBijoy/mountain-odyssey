@@ -100,3 +100,13 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] With a tent, pressing R while sliding down a steep slope says "Stand on the ground to rest".
 - [ ] A tent rest after a fall injury leaves the stamina cap reduced; a camp rest restores it.
 - [ ] Without gloves, climbing a wall above about 6,150 m becomes impossible mid-climb ("Requires gloves (too cold)") — check this feels fair.
+
+## Glacier surfaces (spec 002)
+
+- [ ] On Mera, snow and ice colour follows the glacier shapes on the satellite image; the ground near Khare is rock-coloured.
+- [ ] A steep wall on the glacier says "Requires ice axe + crampons" without crampons.
+- [ ] A steep rock wall off the glacier above 5,400 m can be climbed without an ice axe.
+- [ ] The full map (Tab) shows the glacier shapes.
+- [ ] The credit line includes "© OpenStreetMap contributors".
+- [ ] The glacier edge on close tiles does not look jarringly hard (8 m mask).
+- [ ] Seasonal snow outside the OSM glaciers (white in the satellite image) shows as rock in the palette — check this reads acceptably up close.

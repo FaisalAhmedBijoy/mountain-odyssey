@@ -4,6 +4,7 @@
 
 - Terrain: Contains modified Copernicus DEM data (Copernicus GLO-30, © DLR e.V. / ESA, provided under the Copernicus licence).
 - Terrain imagery: Contains modified Copernicus Sentinel data 2023–2024 (Sentinel-2 L2A, ESA, provided under the Copernicus Sentinel data licence; read from the AWS Open Data registry).
+- Glacier outlines: © OpenStreetMap contributors, available under the Open Database License (ODbL 1.0), from the Geofabrik extract `nepal-261112.osm.pbf` (`tools/terrain/data/mera-peak-glaciers.geojson`).
 
 ## Models
 

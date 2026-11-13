@@ -1,7 +1,7 @@
 ---
 id: 002
 title: OSM glacier surfaces — snow and ice from real glacier outlines
-status: draft
+status: implemented
 date: 2026-11-13
 instruction: docs/specs/instructions/002-osm-glacier-surfaces.md
 ---
@@ -78,37 +78,37 @@ Out of scope: see the instruction.
 
 ```json
 "osm": {
-  "url": "https://download.geofabrik.de/asia/nepal-<YYMMDD>.osm.pbf",
-  "sizeBytes": 414999431,
+  "glaciers": "data/mera-peak-glaciers.geojson",
   "attribution": "© OpenStreetMap contributors",
   "maskSpacingM": 8
 }
 ```
 
-Pin the dated file name (Geofabrik keeps dated snapshots) and its size. The size is checked after download.
+The GeoJSON is committed and extracted once from the pinned Geofabrik extract `nepal-261112.osm.pbf`, so the bake needs no download.
 
 ### 5.2 Bake steps (`tools/terrain/osm_mask.py`, called from `bake_dem`)
 
-1. Download the extract to `tools/terrain/.cache/<basename>` if it is missing.
-2. Parse it with `pyosmium` (add `osmium` to `tools/terrain/requirements.txt`).
-3. Keep only:
+Extract once with `extract_glaciers.py`; the bake rasterises the committed GeoJSON.
+
+1. `extract_glaciers.py` reads the pinned extract `nepal-261112.osm.pbf` with `pyosmium` and keeps only:
    - `natural=glacier` closed ways;
    - `type=multipolygon` relations with `natural=glacier`, using their outer and inner rings;
-   - and only those whose bounding box intersects the terrain square (lat/lon from the grid spec, plus a 1 km margin).
-4. Project each ring to the local metric grid with the same transform the DEM uses (`GridSpec`).
-5. Rasterise at `maskSpacingM`. Use `rasterio.features.rasterize`, which is already a dependency. Inner rings make holes.
-6. Write `surface.u8`:
+   - and only those whose bounding box intersects the terrain square (plus a 1 km margin).
+   It writes `tools/terrain/data/mera-peak-glaciers.geojson` (38 polygons, about 30 KB), which is committed.
+2. The bake projects each ring to the local metric grid with the same transform the DEM uses (`GridSpec`).
+3. It rasterises at `maskSpacingM` with a numpy scanline fill (even-odd per polygon, then OR across polygons). Inner rings make holes.
+4. It writes `surface.u8`:
    - row-major, row = z (north first), matching the tile convention;
-   - `(sizeX / maskSpacingM + 1) × (sizeZ / maskSpacingM + 1)` samples;
+   - `(sizeX / maskSpacingM + 1) × (sizeZ / maskSpacingM + 1)` samples (1537 × 1537 on Mera);
    - value 1 = glacier, 0 = not glacier.
-7. Manifest:
+5. Manifest:
    ```json
-   "surfaceMask": { "file": "surface.u8", "spacingM": 8, "samplesX": N, "samplesZ": N, "source": "OSM natural=glacier, nepal-<YYMMDD>" }
+   "surfaceMask": { "file": "surface.u8", "spacingM": 8, "samplesX": N, "samplesZ": N, "source": "OSM natural=glacier, nepal-261112" }
    ```
-   Append `" · © OpenStreetMap contributors"` to `attribution`.
-8. Print the glacier area (km²) and the share of the square, and warn if it is 0.
+   It appends `" · © OpenStreetMap contributors"` to `attribution`.
+6. It prints the glacier area (km²) and the share of the square, and warns if it is 0. Mera: 26.8 km², 17.7 % of the 12.3 km square.
 
-`bake_synthetic` (test-peak) writes a synthetic mask: a disc of radius 300 m around the summit. The manifest has no OSM attribution for it.
+`bake_synthetic` (test-peak) writes a synthetic mask: a disc of radius 200 m around the mound at x = +512, z = −512. The manifest has no OSM attribution for it.
 
 ### 5.3 Runtime classification
 
@@ -185,9 +185,12 @@ Manual (playtest checklist):
 
 ## 8. Open questions
 
-- Should the CI deploy bake download the 415 MB extract on every run? Alternatives:
-  - commit a small filtered GeoJSON of the glacier rings to `tools/terrain/data/` (ODbL-compatible, a few hundred KB) and rasterise from that;
-  - use an Actions cache.
-
-  Decide this when writing the plan.
+- Should the CI deploy bake download the 415 MB extract on every run? Answered: no. The filtered GeoJSON of the glacier rings is committed to `tools/terrain/data/` and the bake rasterises from it (decision 1 in §9).
 - Should the lower edge of a glacier get a thin snow fringe for looks? Leave it out until the playtest shows the need.
+
+## 9. Decisions taken during planning
+
+1. **The glacier GeoJSON is committed.** `tools/terrain/data/mera-peak-glaciers.geojson` is extracted once from `nepal-261112.osm.pbf` and kept under ODbL with attribution. This answers the open question about CI downloads.
+2. **Rasterising is a numpy scanline fill** (even-odd per polygon, then OR across polygons), not `rasterio.features`. It avoids GeoTIFF transform-orientation pitfalls and is easy to test.
+3. **The backdrop and the map use the mask resampled to the backdrop grid** (`sampleMask`, nearest sample). Tiles get an exact crop (`cropMask`). The full mask is not structured-cloned into the worker on every backdrop rebuild.
+4. **The synthetic test-peak mask is a 200 m disc around the mound** at x = +512, z = −512. It is asymmetric, so axis mix-ups fail the contract test.
