@@ -19,7 +19,7 @@ import { NO_LOAD, type Load } from '../equipment/loadout';
 import type { PhysicsWorld } from '../physics/PhysicsWorld';
 import { airTempC } from '../survival/bodyTemp';
 import type { SurvivalModifiers } from '../survival/survival';
-import { climbRequirement, surfaceAt, type Gear } from '../world/surface';
+import { classifySurface, climbRequirement, type Gear } from '../world/surface';
 import type { TerrainSampler } from '../world/TerrainSampler';
 import { classifyFall } from './fallDamage';
 import {
@@ -306,7 +306,12 @@ export class Player {
     const hit = this.castWallRay(center, dir, reach);
     if (!hit) return null;
     const slopeDeg = radToDeg(Math.acos(clamp(hit.normal.y, -1, 1)));
-    const surface = surfaceAt(slopeDeg, hit.point.y, cfg.surface);
+    const surface = classifySurface(
+      slopeDeg,
+      hit.point.y,
+      this.sampler.onGlacierAt(hit.point.x, hit.point.z),
+      cfg.surface,
+    );
     const airC = airTempC(this.feetOf(center).y, cfg.survival.temperature);
     const requirement = climbRequirement(surface, this.gear, airC, cfg.equipment.glovesMinAirTempC);
     return {

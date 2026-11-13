@@ -1,13 +1,24 @@
 import { clamp, normalize, radToDeg, type Vec3 } from '../core/math';
+import { glacierAt, type SurfaceMask } from './surfaceMask';
 import { tileKey, type TerrainManifest, type TileData } from './terrainData';
 
 /** CPU-side height queries over the currently loaded tiles. */
 export class TerrainSampler {
   private readonly tiles = new Map<string, Float32Array>();
   private readonly cells: number;
+  private mask: SurfaceMask | null = null;
 
   constructor(private readonly m: TerrainManifest) {
     this.cells = m.tileSamples - 1;
+  }
+
+  setSurfaceMask(mask: SurfaceMask | null): void {
+    this.mask = mask;
+  }
+
+  /** Glacier at a world point: null when there is no mask or the point is outside it. */
+  onGlacierAt(x: number, z: number): boolean | null {
+    return this.mask ? glacierAt(this.mask, x, z) : null;
   }
 
   setTile(tile: TileData): void {

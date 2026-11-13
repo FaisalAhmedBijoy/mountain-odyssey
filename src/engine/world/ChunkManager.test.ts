@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from '../config/game.config';
 import { PhysicsWorld } from '../physics/PhysicsWorld';
 import { ChunkManager, chunkBounds, colliderChunks, desiredChunks } from './ChunkManager';
+import type { GridGeometryArgs } from './gridGeometry';
 import { SyncMeshBuilder } from './meshBuilder';
+import type { SurfaceMask } from './surfaceMask';
 import type { TerrainManifest } from './terrainData';
 import { TerrainSampler } from './TerrainSampler';
 
@@ -65,7 +67,15 @@ const fakeFetch = (async (url: string) =>
 let physics: PhysicsWorld | null = null;
 afterEach(() => physics?.dispose());
 
-async function setup() {
+class RecordingBuilder extends SyncMeshBuilder {
+  readonly calls: GridGeometryArgs[] = [];
+  override async build(args: GridGeometryArgs) {
+    this.calls.push(args);
+    return super.build(args);
+  }
+}
+
+async function setup(opts: { glacier?: SurfaceMask | null; builder?: SyncMeshBuilder } = {}) {
   physics = await PhysicsWorld.create(-9.81);
   const group = new THREE.Group();
   const sampler = new TerrainSampler(manifest);
@@ -75,7 +85,8 @@ async function setup() {
     parent: group,
     physics,
     sampler,
-    builder: new SyncMeshBuilder(),
+    builder: opts.builder ?? new SyncMeshBuilder(),
+    glacier: opts.glacier,
     material: new THREE.MeshBasicMaterial(),
     rings: [
       { maxRing: 0, step: 1 },
@@ -93,6 +104,32 @@ async function setup() {
 const chunkMeshes = (g: THREE.Group) => g.children.filter((c) => c.name.startsWith('terrain-'));
 
 describe('ChunkManager', () => {
+  it('gives each tile a crop of the glacier mask and the backdrop a sampled copy', async () => {
+    const m = manifest;
+    const size = (m.tileSamples - 1) * m.tilesX * m.spacingM;
+    const n = size / m.spacingM + 1;
+    const glacier = {
+      samplesX: n,
+      samplesZ: n,
+      spacingM: m.spacingM,
+      originX: m.originX,
+      originZ: m.originZ,
+      data: new Uint8Array(n * n).fill(1),
+    };
+    const builder = new RecordingBuilder();
+    const { manager } = await setup({ glacier, builder });
+    expect(manager.backdropGlacier).toMatchObject({
+      samplesX: m.backdrop.samples,
+      spacingM: m.backdrop.spacingM,
+    });
+    await manager.update(0, 0);
+    const tileCall = builder.calls.find((c) => c.skirtDepthM > 0)!;
+    expect(tileCall.glacier).toBeDefined();
+    expect(tileCall.glacier!.samplesX).toBeLessThan(n + 1);
+    const backdropCall = builder.calls.find((c) => c.hole)!;
+    expect(backdropCall.glacier).toBe(manager.backdropGlacier);
+  });
+
   it('loads meshes, colliders and sampler data around the player', async () => {
     const { manager, group, physics, sampler } = await setup();
     await manager.update(6, 6);

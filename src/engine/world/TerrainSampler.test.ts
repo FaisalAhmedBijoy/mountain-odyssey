@@ -36,6 +36,23 @@ describe('TerrainSampler', () => {
     expect(s.heightAt(4, 2)).toBeCloseTo(4);
   });
 
+  it('answers glacier queries from the mask, null without one', () => {
+    const s = makeSampler();
+    expect(s.onGlacierAt(1, 1)).toBeNull();
+    s.setSurfaceMask({
+      samplesX: 3,
+      samplesZ: 2,
+      spacingM: 2,
+      originX: 0,
+      originZ: 0,
+      data: new Uint8Array([0, 1, 0, 0, 0, 0]),
+    });
+    expect(s.onGlacierAt(2, 0)).toBe(true);
+    expect(s.onGlacierAt(0, 0)).toBe(false);
+    expect(s.onGlacierAt(2, 2)).toBe(false);
+    expect(s.onGlacierAt(50, 0)).toBeNull();
+  });
+
   it('returns null outside the world or for unloaded tiles', () => {
     const s = makeSampler();
     expect(s.heightAt(-0.1, 1)).toBeNull();

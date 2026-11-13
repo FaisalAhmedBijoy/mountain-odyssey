@@ -5,6 +5,7 @@ import { mapBounds } from './mapMath';
 import type { MeshBuilder } from './meshBuilder';
 import type { TerrainPalette } from './palette';
 import type { SurfaceRules } from './surface';
+import { cropMask, sampleMask, type SurfaceMask } from './surfaceMask';
 import {
   loadBackdrop,
   loadTile,
@@ -102,6 +103,7 @@ export interface ChunkManagerDeps {
   surface: SurfaceRules;
   palette: TerrainPalette;
   fetchFn?: typeof fetch;
+  glacier?: SurfaceMask | null;
 }
 
 /** Streams terrain tiles around the player: data, LOD meshes, colliders and backdrop. */
@@ -110,6 +112,7 @@ export class ChunkManager {
   private readonly meshes = new Map<string, { mesh: THREE.Mesh; step: number }>();
   private backdrop: Backdrop | null = null;
   private backdropMesh: THREE.Mesh | null = null;
+  private backdropMask: SurfaceMask | null = null;
   private center: TileIndex | null = null;
   private target: TileIndex | null = null;
   private running: Promise<void> | null = null;
@@ -122,8 +125,19 @@ export class ChunkManager {
     return this.backdrop;
   }
 
+  /** The glacier mask on the backdrop grid (for the backdrop mesh and the map), or null. */
+  get backdropGlacier(): SurfaceMask | null {
+    return this.backdropMask;
+  }
+
   async loadBackdrop(): Promise<void> {
-    this.backdrop = await loadBackdrop(this.d.baseUrl, this.d.manifest, this.d.fetchFn);
+    const b = await loadBackdrop(this.d.baseUrl, this.d.manifest, this.d.fetchFn);
+    this.backdrop = b;
+    const g = this.d.glacier;
+    const m = this.d.manifest;
+    this.backdropMask = g
+      ? sampleMask(g, m.originX, m.originZ, b.spacingM, b.samples, b.samples)
+      : null;
   }
 
   /** Request terrain around a world position. Safe to call every frame. */
@@ -204,6 +218,15 @@ export class ChunkManager {
           surface: this.d.surface,
           palette: this.d.palette,
           uv: mapBounds(m),
+          glacier: this.d.glacier
+            ? (cropMask(
+                this.d.glacier,
+                m.originX + k.tx * size,
+                m.originZ + k.tz * size,
+                m.originX + (k.tx + 1) * size,
+                m.originZ + (k.tz + 1) * size,
+              ) ?? undefined)
+            : undefined,
         });
         if (this.disposed) return;
         this.removeMesh(key);
@@ -239,6 +262,7 @@ export class ChunkManager {
       palette: this.d.palette,
       hole,
       uv: mapBounds(m),
+      glacier: this.backdropMask ?? undefined,
     });
     if (this.disposed) return;
     this.removeBackdropMesh();

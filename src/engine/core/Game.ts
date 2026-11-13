@@ -34,7 +34,13 @@ import {
   worldToMap,
   type MapBounds,
 } from '../world/mapMath';
-import { imageryUrl, loadManifest, type CampDef, type TerrainManifest } from '../world/terrainData';
+import {
+  imageryUrl,
+  loadManifest,
+  loadSurfaceMask,
+  type CampDef,
+  type TerrainManifest,
+} from '../world/terrainData';
 import { createTerrainMaterial, loadImageryTexture } from '../world/terrainMaterial';
 import { TeaSystem } from '../world/TeaSystem';
 import { TerrainSampler } from '../world/TerrainSampler';
@@ -179,6 +185,8 @@ export class Game {
     const physics = await PhysicsWorld.create(cfg.physics.gravity);
     this.cleanup.push(() => physics.dispose());
     const sampler = new TerrainSampler(manifest);
+    const glacier = await loadSurfaceMask(o.terrainBaseUrl, manifest);
+    sampler.setSurfaceMask(glacier);
     const builder: MeshBuilder =
       o.useWorker === false ? new SyncMeshBuilder() : new WorkerMeshBuilder();
     const imageUrl = imageryUrl(o.terrainBaseUrl, manifest);
@@ -197,6 +205,7 @@ export class Game {
       parent: this.scene,
       physics,
       sampler,
+      glacier,
       builder,
       material,
       rings: cfg.terrain.lodRings,
@@ -280,7 +289,12 @@ export class Game {
     const bounds = this.w.mapBounds;
     const map: MapInfo | null = backdrop
       ? {
-          image: buildMapImage(backdrop, cfg.biomes[o.biome].palette, cfg.surface),
+          image: buildMapImage(
+            backdrop,
+            cfg.biomes[o.biome].palette,
+            cfg.surface,
+            chunks.backdropGlacier ?? undefined,
+          ),
           sizeM: { x: bounds.sizeX, z: bounds.sizeZ },
           camps: manifest.camps.map((c) => ({
             id: c.id,
