@@ -90,7 +90,7 @@
     "sizePx": 256
   },
   "surfaceMask": {
-    "file": "surface.u8",
+    "file": "surface.bits",
     "samples": 65,
     "spacingM": 32.0,
     "source": "synthetic disc"

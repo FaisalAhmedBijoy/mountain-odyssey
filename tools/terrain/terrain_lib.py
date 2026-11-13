@@ -898,9 +898,11 @@ def write_terrain(
         n = int(round((h.shape[0] - 1) * spacing_m / surface_mask_spacing_m)) + 1
         if surface_mask.shape != (n, n) or surface_mask.dtype != np.uint8:
             raise ValueError(f"surface mask must be uint8 {n}x{n}, got {surface_mask.dtype} {surface_mask.shape}")
-        (out / "surface.u8").write_bytes(np.ascontiguousarray(surface_mask).tobytes())
+        (out / "surface.bits").write_bytes(
+            np.packbits(np.ascontiguousarray(surface_mask).ravel(), bitorder="little").tobytes()
+        )
         manifest["surfaceMask"] = {
-            "file": "surface.u8",
+            "file": "surface.bits",
             "samples": n,
             "spacingM": float(surface_mask_spacing_m),
             "source": surface_mask_source,

@@ -38,6 +38,26 @@ describe('cropMask', () => {
       for (let z = 205; z <= 212; z += 1) expect(glacierAt(crop, x, z)).toBe(glacierAt(mask, x, z));
     }
   });
+  it('crops a larger mask, including half a sample past each edge and at the border', () => {
+    const big: SurfaceMask = {
+      samplesX: 20,
+      samplesZ: 20,
+      spacingM: 10,
+      originX: 0,
+      originZ: 0,
+      data: Uint8Array.from({ length: 400 }, (_, i) => ((i * 7) % 3 === 0 ? 1 : 0)),
+    };
+    const crop = cropMask(big, 52, 61, 118, 133)!;
+    expect(crop.samplesX).toBeLessThan(20);
+    expect(crop.samplesZ).toBeLessThan(20);
+    for (let x = 47; x <= 123; x += 1) {
+      for (let z = 56; z <= 138; z += 1) expect(glacierAt(crop, x, z)).toBe(glacierAt(big, x, z));
+    }
+    const corner = cropMask(big, 0, 0, 30, 30)!;
+    for (let x = 0; x <= 35; x += 1) {
+      for (let z = 0; z <= 35; z += 1) expect(glacierAt(corner, x, z)).toBe(glacierAt(big, x, z));
+    }
+  });
   it('copies the data instead of sharing it', () => {
     const crop = cropMask(mask, 100, 200, 130, 220)!;
     expect(crop.data.buffer).not.toBe(mask.data.buffer);

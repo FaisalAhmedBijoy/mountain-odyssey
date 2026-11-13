@@ -85,8 +85,10 @@ def bake_glacier_mask(cfg: dict, spec: GridSpec, config_dir: Path) -> tuple[np.n
         if not isinstance(block.get(key), str) or not block[key]:
             raise ValueError(f"osm.{key} must be a non-empty string")
     spacing = float(block.get("maskSpacingM", 8))
+    if spacing <= 0:
+        raise ValueError(f"osm.maskSpacingM {spacing:g} must be positive")
     cells = spec.size_m / spacing
-    if spacing <= 0 or abs(cells - round(cells)) > 1e-9:
+    if abs(cells - round(cells)) > 1e-9:
         raise ValueError(f"osm.maskSpacingM {spacing:g} must divide the terrain size {spec.size_m:g} m")
     data = json.loads((config_dir / block["glaciers"]).read_text())
     polygons = [f["geometry"]["coordinates"] for f in data["features"] if f["geometry"]["type"] == "Polygon"]

@@ -174,6 +174,9 @@ export class Game {
     const gear = gearOf(o.loadout);
     const packKg = packWeightKg(o.loadout);
     const manifest = await loadManifest(`${o.terrainBaseUrl}/manifest.json`);
+    // Fetched in parallel with the imagery; the await below rethrows a failure.
+    const glacierLoad = loadSurfaceMask(o.terrainBaseUrl, manifest);
+    glacierLoad.catch(() => undefined);
     const environment = new Environment(
       this.scene,
       true,
@@ -185,7 +188,7 @@ export class Game {
     const physics = await PhysicsWorld.create(cfg.physics.gravity);
     this.cleanup.push(() => physics.dispose());
     const sampler = new TerrainSampler(manifest);
-    const glacier = await loadSurfaceMask(o.terrainBaseUrl, manifest);
+    const glacier = await glacierLoad;
     sampler.setSurfaceMask(glacier);
     const builder: MeshBuilder =
       o.useWorker === false ? new SyncMeshBuilder() : new WorkerMeshBuilder();

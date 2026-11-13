@@ -1,3 +1,5 @@
+"""Skipped unless osmium is installed (tools/terrain/requirements-osm.txt); CI does not install it — the extractor is a one-time tool."""
+
 import pytest
 
 osmium = pytest.importorskip("osmium")

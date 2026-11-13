@@ -399,7 +399,7 @@ def test_contract_fixture_matches_current_bake(tmp_path):
     out = FIXTURE_DIR if os.environ.get("UPDATE_FIXTURES") == "1" else tmp_path
     manifest = bake_synthetic(str(out), spec, backdrop_spacing_m=128.0, validate=False)
     assert json.loads((FIXTURE_DIR / "manifest.json").read_text()) == manifest
-    for name in ["backdrop.u16", "surface.u8", *(f"tiles/{tx}_{tz}.u16" for tx in range(2) for tz in range(2))]:
+    for name in ["backdrop.u16", "surface.bits", *(f"tiles/{tx}_{tz}.u16" for tx in range(2) for tz in range(2))]:
         assert (FIXTURE_DIR / name).read_bytes() == (out / name).read_bytes(), name
 
 
@@ -916,8 +916,10 @@ def test_bake_synthetic_writes_an_asymmetric_glacier_mask(tmp_path):
     spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=16, spacing_m=64.0)
     manifest = bake_synthetic(str(tmp_path), spec, backdrop_spacing_m=128.0, validate=False)
     sm = manifest["surfaceMask"]
-    assert sm["file"] == "surface.u8" and sm["spacingM"] == 32.0 and sm["samples"] == 65
-    data = np.frombuffer((tmp_path / "surface.u8").read_bytes(), dtype=np.uint8).reshape(65, 65)
+    assert sm["file"] == "surface.bits" and sm["spacingM"] == 32.0 and sm["samples"] == 65
+    raw = np.frombuffer((tmp_path / "surface.bits").read_bytes(), np.uint8)
+    assert raw.size == (65 * 65 + 7) // 8
+    data = np.unpackbits(raw, bitorder="little")[: 65 * 65].reshape(65, 65)
 
     def at(x, z):
         return int(data[int(round((z + 1024) / 32)), int(round((x + 1024) / 32))])
@@ -953,6 +955,7 @@ def test_bake_glacier_mask_reads_the_geojson(tmp_path):
     {"attribution": "x", "maskSpacingM": 32},
     {"glaciers": "g.geojson", "maskSpacingM": 32},
     {"glaciers": "g.geojson", "attribution": "x", "maskSpacingM": 30},  # does not divide 2048
+    {"glaciers": "g.geojson", "attribution": "x", "maskSpacingM": 0},
 ])
 def test_bake_glacier_mask_rejects_a_bad_block(block):
     from bake import bake_glacier_mask

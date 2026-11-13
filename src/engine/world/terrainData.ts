@@ -232,10 +232,15 @@ export async function loadSurfaceMask(
   if (!sm) return null;
   const url = `${baseUrl}/${sm.file}`;
   const res = await fetchWithRetry(url, 3, 300, fetchFn);
-  const data = new Uint8Array(await res.arrayBuffer());
-  if (data.length !== sm.samples * sm.samples) {
-    throw new Error(`Surface mask ${url} has ${data.length} bytes, expected ${sm.samples ** 2}`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const count = sm.samples * sm.samples;
+  const expected = Math.ceil(count / 8);
+  if (bytes.length !== expected) {
+    throw new Error(`Surface mask ${url} has ${bytes.length} bytes, expected ${expected}`);
   }
+  // Bit i (LSB first) of byte i >> 3, i = row * samples + col.
+  const data = new Uint8Array(count);
+  for (let i = 0; i < count; i += 1) data[i] = (bytes[i >> 3] >> (i & 7)) & 1;
   return {
     samplesX: sm.samples,
     samplesZ: sm.samples,

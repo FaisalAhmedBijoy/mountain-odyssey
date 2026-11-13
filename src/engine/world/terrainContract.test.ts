@@ -76,7 +76,7 @@ describe('Python bake -> TerrainSampler axis contract', () => {
 describe('Python bake -> glacier mask contract', () => {
   it('puts the synthetic glacier on the north-east mound only', async () => {
     const m = parseManifest(JSON.parse(readFileSync(`${dir}manifest.json`, 'utf8')));
-    const bytes = readFileSync(`${dir}surface.u8`);
+    const bytes = readFileSync(`${dir}surface.bits`);
     const fetchFn = (async () => new Response(new Uint8Array(bytes))) as typeof fetch;
     const mask = (await loadSurfaceMask('/fixture', m, fetchFn))!;
     expect(glacierAt(mask, 512, -512)).toBe(true);
