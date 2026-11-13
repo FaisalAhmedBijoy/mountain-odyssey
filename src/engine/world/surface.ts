@@ -36,13 +36,12 @@ export function surfaceAt(slopeDeg: number, altitudeM: number, rules: SurfaceRul
   return 'snow';
 }
 
-/** With a baked glacier mask (spec 002): snow/ice only on glaciers, steep ground is rock. */
+/** With a baked glacier mask (spec 002): glaciers are snow below 25° and ice from 25° (steep glacier walls too); everything else is rock. */
 export function surfaceWithMask(
   slopeDeg: number,
   onGlacier: boolean,
   rules: SurfaceRules,
 ): Surface {
-  if (slopeDeg >= rules.rockMinSlopeDeg) return 'rock';
   if (!onGlacier) return 'rock';
   return slopeDeg >= rules.iceMinSlopeDeg ? 'ice' : 'snow';
 }

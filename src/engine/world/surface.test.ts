@@ -55,9 +55,11 @@ describe('climbRequirement', () => {
 });
 
 describe('surfaceWithMask', () => {
-  it('is rock on steep ground, on or off a glacier', () => {
-    expect(surfaceWithMask(45, true, rules)).toBe('rock');
-    expect(surfaceWithMask(40, true, rules)).toBe('rock');
+  it('is ice on steep glacier walls', () => {
+    expect(surfaceWithMask(45, true, rules)).toBe('ice');
+    expect(surfaceWithMask(60, true, rules)).toBe('ice');
+  });
+  it('is rock on steep ground off a glacier', () => {
     expect(surfaceWithMask(45, false, rules)).toBe('rock');
   });
   it('is snow below 25° and ice from 25° on a glacier', () => {
@@ -85,5 +87,12 @@ describe('classifySurface', () => {
   it('uses the mask when known, whatever the altitude', () => {
     expect(classifySurface(10, 5100, true, rules)).toBe('snow');
     expect(classifySurface(10, 6000, false, rules)).toBe('rock');
+    expect(classifySurface(60, 5100, true, rules)).toBe('ice');
+  });
+  it('needs an ice axe and crampons on a 60° glacier wall', () => {
+    const LIMIT = GAME_CONFIG.equipment.glovesMinAirTempC;
+    expect(climbRequirement(classifySurface(60, 5600, true, rules), NO_GEAR, 0, LIMIT)).toBe(
+      'Requires ice axe + crampons',
+    );
   });
 });
