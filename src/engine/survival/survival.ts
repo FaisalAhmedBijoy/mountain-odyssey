@@ -133,6 +133,7 @@ export function startBottle(
  * Effects of a completed rest (M2a spec §4.5, M2b plan deviation 1). Stamina is restored by Player.
  * `acclimatize` is false when this camp already granted its acclimatization, and for tent rests.
  * `warmth` is the rest's shelter heat; a camp's warms fully, less warms proportionally.
+ * `refillOxygen` is false for tent rests: oxygen then stays as it was instead of snapping to the ceiling.
  */
 export function restAtCamp(
   s: SurvivalState,
@@ -140,6 +141,7 @@ export function restAtCamp(
   r: SurvivalRules,
   acclimatize: boolean,
   warmth: number = r.temperature.campShelterHeat,
+  refillOxygen = true,
 ): SurvivalState {
   const warmed = r.max * Math.min(1, warmth / r.temperature.campShelterHeat);
   const rested: SurvivalState = {
@@ -150,7 +152,7 @@ export function restAtCamp(
     bodyTemp: Math.max(s.bodyTemp, warmed),
     supplies: Math.max(0, s.supplies - r.supplies.restCost),
   };
-  return { ...rested, oxygen: ceilingAt(rested, altitudeM, r) };
+  return refillOxygen ? { ...rested, oxygen: ceilingAt(rested, altitudeM, r) } : rested;
 }
 
 /** State after a respawn at a camp (M2a spec §4.6). */

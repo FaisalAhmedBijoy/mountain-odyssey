@@ -121,11 +121,15 @@ describe('loadoutWarnings', () => {
     ]);
     expect(loadoutWarnings({ ...MERA_DEFAULTS, crampons: 0 }, ALL)).toEqual([
       'No crampons: you cannot climb ice.',
-      'Over 20 kg: −15 % speed, +23 % stamina use.',
+      'Over 20 kg: −16 % speed, +24 % stamina use.',
     ]);
     expect(loadoutWarnings(MERA_DEFAULTS, ALL)).toEqual([
-      'Over 20 kg: −17 % speed, +26 % stamina use.',
+      'Over 20 kg: −18 % speed, +27 % stamina use.',
     ]);
+  });
+  it('rounds the over-weight percentages up', () => {
+    const w = loadoutWarnings({ ...MERA_DEFAULTS, o2: 0, food: 3, water: 3 }, ALL);
+    expect(w[w.length - 1]).toBe('Over 20 kg: −1 % speed, +1 % stamina use.');
   });
   it('says nothing about items the mountain does not offer', () => {
     expect(loadoutWarnings(HILLS.defaults, HILLS)).toEqual([]);

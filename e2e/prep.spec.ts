@@ -10,7 +10,7 @@ test('Mera prep shows the pack weight, the over-weight warning and keeps boots',
   await page.getByRole('button', { name: /Mera Peak/ }).click();
   await expect(page.getByTestId('pack-weight')).toHaveText('28.7 / 20 kg');
   await expect(page.getByTestId('prep-warnings')).toContainText(
-    'Over 20 kg: −17 % speed, +26 % stamina use.',
+    'Over 20 kg: −18 % speed, +27 % stamina use.',
   );
   await expect(page.getByRole('button', { name: /Mountaineering boots/ })).toBeDisabled();
 

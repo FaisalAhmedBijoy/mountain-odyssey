@@ -135,6 +135,19 @@ describe('startBottle', () => {
 });
 
 describe('restAtCamp', () => {
+  it('keeps oxygen when refillOxygen is false, and still costs supplies', () => {
+    const t = r.temperature;
+    const s = restAtCamp(
+      state({ oxygen: 10, supplies: 50 }),
+      5800,
+      r,
+      false,
+      t.tentShelterHeat,
+      false,
+    );
+    expect(s.oxygen).toBe(10);
+    expect(s.supplies).toBe(50 - r.supplies.restCost);
+  });
   it('acclimatizes by 250 m (max 1000), warms fully, sets oxygen to the new ceiling and costs 10 supplies', () => {
     const s = restAtCamp(state({ bodyTemp: 40, oxygen: 10, supplies: 50 }), 5800, r, true);
     expect(s.acclimatizationM).toBe(250);

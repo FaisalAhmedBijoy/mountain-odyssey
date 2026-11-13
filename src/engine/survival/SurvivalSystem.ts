@@ -37,6 +37,8 @@ export interface SurvivalOutput {
   death: DeathCause | null;
   toast: string | null;
   restFinished: boolean;
+  /** True only when a camp rest finishes: it also clears a fall injury. */
+  healInjury: boolean;
 }
 
 /** What the loadout gives survival (M2b spec §5.2), fixed for the climb. */
@@ -91,10 +93,10 @@ export class SurvivalSystem {
     let toast: string | null = null;
     if (f.actions.rest) {
       const sheltered = f.campId !== null || this.kit.tent;
-      if (sheltered && f.grounded && f.state !== 'climb') {
+      if (sheltered && f.grounded && (f.state === 'walk' || f.state === 'run')) {
         this.restLeftSec = this.r.restSeconds;
         this.restCampId = f.campId;
-        return { death: null, toast: 'Resting…', restFinished: false };
+        return { death: null, toast: 'Resting…', restFinished: false, healInjury: false };
       }
       toast = sheltered ? 'Stand on the ground to rest' : 'You can only rest at a camp';
     }
@@ -113,7 +115,7 @@ export class SurvivalSystem {
       this.r,
     );
     this.s = state;
-    return { death, toast, restFinished: false };
+    return { death, toast, restFinished: false, healInjury: false };
   }
 
   respawn(campAltitudeM: number): void {
@@ -125,7 +127,8 @@ export class SurvivalSystem {
 
   private continueRest(altitudeM: number, dt: number): SurvivalOutput {
     this.restLeftSec = Math.max(0, this.restLeftSec - dt);
-    if (this.restLeftSec > 0) return { death: null, toast: null, restFinished: false };
+    if (this.restLeftSec > 0)
+      return { death: null, toast: null, restFinished: false, healInjury: false };
     const campId = this.restCampId;
     this.restCampId = null;
     const t = this.r.temperature;
@@ -133,8 +136,8 @@ export class SurvivalSystem {
       (campId !== null ? t.campShelterHeat : t.tentShelterHeat) +
       (this.kit.stove ? t.stoveHeat : 0);
     if (campId === null) {
-      this.s = restAtCamp(this.s, altitudeM, this.r, false, warmth);
-      return { death: null, toast: 'Rested in the tent', restFinished: true };
+      this.s = restAtCamp(this.s, altitudeM, this.r, false, warmth, false);
+      return { death: null, toast: 'Rested in the tent', restFinished: true, healInjury: false };
     }
     const acclimatize = !this.acclimatizedAt.has(campId);
     if (acclimatize) this.acclimatizedAt.add(campId);
@@ -146,6 +149,7 @@ export class SurvivalSystem {
         ? `Rested — acclimatized to +${m} m`
         : `Rested — already acclimatized here (+${m} m)`,
       restFinished: true,
+      healInjury: true,
     };
   }
 

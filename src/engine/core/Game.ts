@@ -423,7 +423,8 @@ export class Game {
       dt,
     );
     w.player.setSurvivalModifiers(w.survival.modifiers);
-    if (out.restFinished) w.player.restoreStamina();
+    if (out.healInjury) w.player.restoreStamina();
+    else if (out.restFinished) w.player.refillStamina();
     if (out.toast) this.showToast(out.toast);
     if (out.death) this.pendingRespawn ??= out.death;
   }

@@ -299,4 +299,13 @@ describe('Player', () => {
     player.restoreStamina();
     expect(player.snapshot.stamina).toEqual({ value: 100, cap: 100 });
   });
+
+  it('refillStamina refills up to the injured cap and keeps the injury', async () => {
+    const { player, run } = await setup({ x: 0, y: 108.05, z: -14 });
+    run({}, 10);
+    run({ forward: -1 }, 240);
+    expect(player.snapshot.stamina.cap).toBe(70);
+    player.refillStamina();
+    expect(player.snapshot.stamina).toEqual({ value: 70, cap: 70 });
+  });
 });

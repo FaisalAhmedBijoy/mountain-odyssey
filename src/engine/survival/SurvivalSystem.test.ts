@@ -200,6 +200,40 @@ describe('SurvivalSystem', () => {
     expect(sys.resting).toBe(false);
   });
 
+  it('a tent rest does not start while sliding', () => {
+    const sys = new SurvivalSystem(r, 5800, { ...KIT, tent: true });
+    const out = sys.step(press('rest', { altitudeM: 5800, state: 'slide' }), DT);
+    expect(out.toast).toBe('Stand on the ground to rest');
+    expect(sys.resting).toBe(false);
+  });
+
+  it('a tent rest leaves oxygen as it was and does not heal an injury', () => {
+    const sys = new SurvivalSystem(r, 5800, { ...KIT, tent: true });
+    const at = { altitudeM: 5800 };
+    sys.step(frame(at), 600);
+    const oxygen = sys.state.oxygen;
+    sys.step(press('rest', at), DT);
+    let heal: boolean | null = null;
+    for (let i = 0; i < 400 && heal === null; i++) {
+      const out = sys.step(frame(at), DT);
+      if (out.restFinished) heal = out.healInjury;
+    }
+    expect(heal).toBe(false);
+    expect(sys.state.oxygen).toBe(oxygen);
+  });
+
+  it('a camp rest heals an injury', () => {
+    const sys = new SurvivalSystem(r, 5800, KIT);
+    const at = { altitudeM: 5800, campId: 'c1' };
+    sys.step(press('rest', at), DT);
+    let heal: boolean | null = null;
+    for (let i = 0; i < 400 && heal === null; i++) {
+      const out = sys.step(frame(at), DT);
+      if (out.restFinished) heal = out.healInjury;
+    }
+    expect(heal).toBe(true);
+  });
+
   it('a stove makes a tent rest warmer', () => {
     const cold = { altitudeM: 6476 };
     const plain = new SurvivalSystem(r, 6476, { ...KIT, tent: true });

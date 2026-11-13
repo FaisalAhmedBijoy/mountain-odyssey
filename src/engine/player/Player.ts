@@ -237,6 +237,11 @@ export class Player {
     this.stamina = fullStamina(cfg.stamina);
   }
 
+  /** Stamina up to the current cap; an injury stays (tent rest). */
+  refillStamina(): void {
+    this.stamina = { value: this.stamina.cap, cap: this.stamina.cap };
+  }
+
   dispose(): void {
     this.physics.world.removeCharacterController(this.controller);
     this.physics.world.removeRigidBody(this.body);

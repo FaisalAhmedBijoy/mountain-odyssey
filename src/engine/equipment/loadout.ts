@@ -118,8 +118,9 @@ export function loadoutWarnings(l: Loadout, g: MountainGear): string[] {
   }
   const p = weightPenalty(packWeightKg(l));
   if (p.staminaCostMul > 1) {
-    const speed = Math.round((1 - p.speedMul) * 100);
-    const stamina = Math.round((p.staminaCostMul - 1) * 100);
+    // Rounded up (so any over-weight shows at least 1 %), minus a margin for float noise.
+    const speed = Math.ceil((1 - p.speedMul) * 100 - 1e-9);
+    const stamina = Math.ceil((p.staminaCostMul - 1) * 100 - 1e-9);
     out.push(`Over ${EQ.weight.freeKg} kg: −${speed} % speed, +${stamina} % stamina use.`);
   }
   return out;
