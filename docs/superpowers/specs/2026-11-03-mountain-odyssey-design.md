@@ -190,7 +190,7 @@ Each item has `id`, `name`, `slot`, `weightKg` and `effects`.
 
 | Item | Slot | weightKg | Effect |
 | --- | --- | --- | --- |
-| Mountaineering boots | Feet | 2.0 | Required to leave Khare |
+| Mountaineering boots | Feet | 2.0 | Required on every mountain (Start is disabled without them) |
 | Crampons | Feet (add-on) | 1.0 | Grip on ice; enables ice climbing |
 | Ice axe | Hand | 0.7 | Enables snow/ice climbing; self-arrest reduces slide distance |
 | Harness | Body | 0.5 | Required for fixed ropes |

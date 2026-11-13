@@ -112,7 +112,7 @@ loadoutWarnings(l, mountainGear): string[]        // for the Prep screen
 - ice axe but no crampons: "No crampons: you cannot climb ice."
 - no gloves: "No gloves: no climbing below −15 °C."
 - no jacket: "No jacket: you will get cold fast high up."
-- over the free weight: "Over 20 kg: −X % speed, +Y % stamina use." (X and Y rounded to whole numbers)
+- over the free weight: "Over 20 kg: −X % speed, +Y % stamina use." (X and Y rounded up to whole numbers)
 
 ### 5.2 Existing code that changes
 
@@ -172,7 +172,9 @@ loadoutWarnings(l, mountainGear): string[]        // for the Prep screen
    - A tent rest warms to 50 (15 / 30).
    - A tent rest with a stove warms to about 83 (25 / 30).
 2. **Toast for a tent rest:** `Rested in the tent`. The spec gives none.
-3. **The weight bar shows `28.7 / 20 kg` only.** The penalty text appears once, in the warning list (`Over 20 kg: −17 % speed, +26 % stamina use.`), not repeated next to the bar.
+3. **The weight bar shows `28.7 / 20 kg` only.** The penalty text appears once, in the warning list (`Over 20 kg: −18 % speed, +27 % stamina use.`), not repeated next to the bar.
 4. **The Patharia e2e test checks that Prep → Start opens the game for `patharia`, but not the HUD's `Pack 12.2 kg`.** CI bakes only `test-peak` (`pree2e`), so Patharia never finishes loading there. `Pack 12.2 kg` is covered on the Prep screen (`12.2 / 20 kg`) and by the unit test in Task 6. The HUD pack text is covered on test-peak (`Pack 28.7 kg`).
 5. **The `R — Rest` prompt still appears only at camps.** With a tent, `R` works anywhere on the ground, and the controls hint changes to `Rest at camp or tent`. A prompt shown everywhere would be noise.
 6. **`weightPenalty` rounds the over-weight kilograms to 0.001 kg.** Otherwise float sums such as 20.000000000000004 kg would produce a `−0 %` warning.
+7. **A tent rest is limited.** It refills stamina only up to the injured cap and leaves oxygen unchanged. Only a camp rest clears an injury and resets oxygen to the ceiling. Like a camp rest, it costs supplies and needs the player standing (walk or run state), not sliding or climbing.
+8. **Over-weight percentages round up**, so any pack over 20 kg shows at least −1 % and +1 %.

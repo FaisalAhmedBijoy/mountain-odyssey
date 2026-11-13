@@ -35,7 +35,7 @@ npm run terrain:patharia   # bake Patharia Hills (Sylhet) from Copernicus DEM (n
 
 Production: pushes to `main` that pass CI are deployed to GitHub Pages (`.github/workflows/deploy.yml`, site under `/mountain-odyssey/`). Static files in `public/` must be referenced through `assetUrl()` (`src/app/assetUrl.ts`), never with a leading `/`, so they resolve under that base path. Local check: `VITE_BASE=/mountain-odyssey/ npm run build && npx vite preview --base /mountain-odyssey/`.
 
-Without a query the app opens on the country menu (country → mountain → prep → game). `?mountain=<id>` (e.g. `/?mountain=test-peak`) skips the menus and loads that mountain directly. `?mountain=<id>` starts with that mountain's default loadout.
+Without a query the app opens on the country menu (country → mountain → prep → game). `?mountain=<id>` (e.g. `/?mountain=test-peak`) skips the menus and loads that mountain directly, with its default loadout.
 
 ## Architecture
 
@@ -56,7 +56,7 @@ Without a query the app opens on the country menu (country → mountain → prep
 - `PrepScreen` (`src/ui/prep/`) builds a `Loadout`. `Game.create` validates it, then derives:
   - `Gear` for `Player` and `climbRequirement`. Gloves are needed below `equipment.glovesMinAirTempC`, on every surface.
   - a `Load`: speed and stamina-drain multipliers, fixed for the climb.
-  - a `SurvivalKit` (insulation, inventory, tent, stove). A tent lets `R` rest away from camps, without acclimatization. Rest warmth is shelter heat ÷ `campShelterHeat`.
+  - a `SurvivalKit` (insulation, inventory, tent, stove). A tent lets `R` rest away from camps (standing, not sliding): no acclimatization, the injury stays, oxygen is unchanged. Rest warmth is shelter heat ÷ `campShelterHeat`.
 
 **Look:** `toonLook.ts` turns every material of the character GLB into a toon material and adds a back-face outline mesh pushed out in screen space; `PlayerVisual` applies it to any model, and clip names are resolved from `GAME_CONFIG.character.clips` (`toonMath.ts`). `ThirdPersonCamera` shifts the look target to the right (`shoulderOffsetM`) and adds landing shake and run bob from `cameraShake.ts`; `Game` turns `player:landed` into trauma. `Sky.ts` (a vertex-coloured dome and sprite clouds) is owned by `Environment`, which `Game` creates after the manifest loads so clouds sit above the highest ground.
 

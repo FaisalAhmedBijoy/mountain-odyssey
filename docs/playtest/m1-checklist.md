@@ -97,3 +97,6 @@ Run on the minimum-spec machine (8 GB RAM, integrated GPU) in Chrome, then Firef
 - [ ] With a tent, R away from a camp rests ("Rested in the tent") and does not acclimatize; without one it says "You can only rest at a camp".
 - [ ] A heavy pack (all O₂, food and water) feels clearly slower than a light one.
 - [ ] The HUD item row shows the pack weight.
+- [ ] With a tent, pressing R while sliding down a steep slope says "Stand on the ground to rest".
+- [ ] A tent rest after a fall injury leaves the stamina cap reduced; a camp rest restores it.
+- [ ] Without gloves, climbing a wall above about 6,150 m becomes impossible mid-climb ("Requires gloves (too cold)") — check this feels fair.
