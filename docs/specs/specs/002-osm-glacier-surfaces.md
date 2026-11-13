@@ -64,7 +64,7 @@ Out of scope: see the instruction.
 
 ### 4.3 Risks
 
-- **Old outlines.** OSM glacier outlines may be years old. The pinned extract date goes into the manifest attribution comment, so updates are a deliberate re-bake.
+- **Old outlines.** OSM glacier outlines may be years old. The pinned extract date goes into the manifest `surfaceMask.source` field, so updates are a deliberate re-bake.
 - **Edge sharpness.** At 8 m resolution, colour edges at the glacier rim will be visibly hard on close tiles. Soft blending is out of scope; check it in the playtest.
 - **Large download.** The 415 MB extract is read once by `tools/terrain/extract_glaciers.py`, and only the ~30 KB GeoJSON is committed, so bakes and CI download nothing extra. Re-extract deliberately to update the outlines.
 - **Licence.** ODbL. A produced work (our mask) needs attribution, not share-alike of the game. The bake records the source and date in the manifest.
@@ -86,7 +86,7 @@ Out of scope: see the instruction.
 
 The GeoJSON is committed and extracted once from the pinned Geofabrik extract `nepal-261112.osm.pbf`, so the bake needs no download.
 
-### 5.2 Bake steps (`tools/terrain/osm_mask.py`, called from `bake_dem`)
+### 5.2 Bake steps (`bake_glacier_mask` in `tools/terrain/bake.py`; `project_polygons` and `rasterise_polygons` in `tools/terrain/terrain_lib.py`)
 
 Extract once with `extract_glaciers.py`; the bake rasterises the committed GeoJSON.
 
@@ -99,11 +99,11 @@ Extract once with `extract_glaciers.py`; the bake rasterises the committed GeoJS
 3. It rasterises at `maskSpacingM` with a numpy scanline fill (even-odd per polygon, then OR across polygons). Inner rings make holes.
 4. It writes `surface.u8`:
    - row-major, row = z (north first), matching the tile convention;
-   - `(sizeX / maskSpacingM + 1) × (sizeZ / maskSpacingM + 1)` samples (1537 × 1537 on Mera);
+   - `samples × samples` bytes, with `samples = size / maskSpacingM + 1` (1537 × 1537 on Mera);
    - value 1 = glacier, 0 = not glacier.
 5. Manifest:
    ```json
-   "surfaceMask": { "file": "surface.u8", "spacingM": 8, "samplesX": N, "samplesZ": N, "source": "OSM natural=glacier, nepal-261112" }
+   "surfaceMask": { "file": "surface.u8", "samples": N, "spacingM": 8, "source": "OSM natural=glacier, nepal-261112" }
    ```
    It appends `" · © OpenStreetMap contributors"` to `attribution`.
 6. It prints the glacier area (km²) and the share of the square, and warns if it is 0. Mera: 26.8 km², 17.7 % of the 12.3 km square.
@@ -156,7 +156,7 @@ Unit tests (Vitest):
 - `TerrainSampler.onGlacierAt`:
   - nearest-sample lookup with an asymmetric mask (catches row and column swaps);
   - `null` outside the mask and with no mask.
-- The manifest parser accepts and validates `surfaceMask` (size equals `samplesX × samplesZ`, spacing > 0), and rejects bad values.
+- The manifest parser accepts and validates `surfaceMask` (the byte count equals `samples²` and `(samples − 1) × spacingM` equals the terrain size), and rejects bad values.
 - `gridGeometry` uses the mask crop: a vertex on a glacier gets the snow colour, and one off a glacier gets the rock colour, at the same height and slope.
 - `mapImage` respects the mask.
 
