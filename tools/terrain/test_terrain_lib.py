@@ -23,7 +23,11 @@ from terrain_lib import (
     imagery_empty_fraction,
     label_components,
     latlon_bounds,
+    lonlat_to_xz,
     place_camps,
+    project_polygons,
+    rasterise_polygons,
+    synthetic_glacier_polygons,
     quantize,
     resample_rgb_to_metric,
     resample_to_metric,
@@ -395,7 +399,7 @@ def test_contract_fixture_matches_current_bake(tmp_path):
     out = FIXTURE_DIR if os.environ.get("UPDATE_FIXTURES") == "1" else tmp_path
     manifest = bake_synthetic(str(out), spec, backdrop_spacing_m=128.0, validate=False)
     assert json.loads((FIXTURE_DIR / "manifest.json").read_text()) == manifest
-    for name in ["backdrop.u16", *(f"tiles/{tx}_{tz}.u16" for tx in range(2) for tz in range(2))]:
+    for name in ["backdrop.u16", "surface.u8", *(f"tiles/{tx}_{tz}.u16" for tx in range(2) for tz in range(2))]:
         assert (FIXTURE_DIR / name).read_bytes() == (out / name).read_bytes(), name
 
 
@@ -866,3 +870,99 @@ def test_bake_imagery_rejects_a_block_without_url():
     spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=16, spacing_m=64.0)
     with pytest.raises(ValueError, match="imagery.url"):
         bake_imagery({"id": "x", "imagery": {"attribution": "a"}}, spec)
+
+
+def test_lonlat_to_xz_matches_the_dem_transform():
+    x, z = lonlat_to_xz(86.88, 27.71, 27.7, 86.87)
+    assert x == pytest.approx(0.01 * 111320.0 * math.cos(math.radians(27.7)))
+    assert z == pytest.approx(-0.01 * 111320.0)  # north of the centre is -z
+
+
+def test_rasterise_fills_a_square_and_leaves_a_hole():
+    # 11 x 11 samples, 10 m apart, origin -50: sample (r, c) sits at x = -50 + 10c, z = -50 + 10r.
+    outer = [(-25.0, -25.0), (25.0, -25.0), (25.0, 25.0), (-25.0, 25.0), (-25.0, -25.0)]
+    hole = [(-5.0, -5.0), (5.0, -5.0), (5.0, 5.0), (-5.0, 5.0), (-5.0, -5.0)]
+    m = rasterise_polygons([[outer, hole]], samples=11, origin_m=-50.0, spacing_m=10.0)
+    assert m.dtype == np.uint8 and m.shape == (11, 11)
+    assert m[3, 3] == 1 and m[3, 7] == 1 and m[7, 3] == 1  # x, z = -20 / +20
+    assert m[5, 5] == 0  # inside the hole
+    assert m[1, 1] == 0  # outside
+    assert int(m.sum()) == 25 - 1  # 5 x 5 samples inside the square, minus the hole sample
+
+
+def test_rasterise_puts_north_in_row_zero():
+    # A small polygon north-east of the centre (x > 0, z < 0).
+    poly = [(10.0, -45.0), (45.0, -45.0), (45.0, -10.0), (10.0, -10.0)]
+    m = rasterise_polygons([[poly]], samples=11, origin_m=-50.0, spacing_m=10.0)
+    assert m[1, 9] == 1  # x = 40, z = -40
+    assert m[9, 9] == 0 and m[1, 1] == 0
+
+
+def test_overlapping_polygons_union_instead_of_cancelling():
+    a = [(-20.0, -20.0), (20.0, -20.0), (20.0, 20.0), (-20.0, 20.0)]
+    m = rasterise_polygons([[a], [a]], samples=11, origin_m=-50.0, spacing_m=10.0)
+    assert m[5, 5] == 1
+
+
+def test_project_polygons_keeps_rings_and_order():
+    rings = project_polygons([[[[86.87, 27.7], [86.88, 27.7], [86.88, 27.71]]]], 27.7, 86.87)
+    assert len(rings) == 1 and len(rings[0]) == 1 and len(rings[0][0]) == 3
+    assert rings[0][0][0] == pytest.approx((0.0, 0.0))
+
+
+def test_bake_synthetic_writes_an_asymmetric_glacier_mask(tmp_path):
+    from bake import bake_synthetic
+
+    spec = GridSpec(0.0, 0.0, tiles=2, tile_cells=16, spacing_m=64.0)
+    manifest = bake_synthetic(str(tmp_path), spec, backdrop_spacing_m=128.0, validate=False)
+    sm = manifest["surfaceMask"]
+    assert sm["file"] == "surface.u8" and sm["spacingM"] == 32.0 and sm["samples"] == 65
+    data = np.frombuffer((tmp_path / "surface.u8").read_bytes(), dtype=np.uint8).reshape(65, 65)
+
+    def at(x, z):
+        return int(data[int(round((z + 1024) / 32)), int(round((x + 1024) / 32))])
+
+    assert at(512, -512) == 1  # the mound, north-east
+    assert at(-512, -512) == 0 and at(512, 512) == 0 and at(0, 0) == 0
+    assert "OpenStreetMap" not in manifest["attribution"]
+
+
+def test_bake_glacier_mask_is_optional():
+    from bake import bake_glacier_mask
+
+    assert bake_glacier_mask({}, GridSpec(27.7, 86.87, 2, 16, 64.0), Path(".")) == (None, 0.0, "", "")
+
+
+def test_bake_glacier_mask_reads_the_geojson(tmp_path):
+    from bake import bake_glacier_mask
+
+    spec = GridSpec(27.7, 86.87, tiles=2, tile_cells=16, spacing_m=64.0)  # 2048 m square
+    d = 0.003  # about 300 m
+    ring = [[86.87 - d, 27.7 - d], [86.87 + d, 27.7 - d], [86.87 + d, 27.7 + d], [86.87 - d, 27.7 + d], [86.87 - d, 27.7 - d]]
+    (tmp_path / "g.geojson").write_text(json.dumps({
+        "type": "FeatureCollection", "source": "test extract", "features": [
+            {"type": "Feature", "properties": {}, "geometry": {"type": "Polygon", "coordinates": [ring]}}]}))
+    cfg = {"osm": {"glaciers": "g.geojson", "attribution": "© OpenStreetMap contributors", "maskSpacingM": 32}}
+    mask, spacing, source, attribution = bake_glacier_mask(cfg, spec, tmp_path)
+    assert spacing == 32.0 and mask.shape == (65, 65)
+    assert mask[32, 32] == 1 and mask[0, 0] == 0
+    assert source == "test extract" and attribution == "© OpenStreetMap contributors"
+
+
+@pytest.mark.parametrize("block", [
+    {"attribution": "x", "maskSpacingM": 32},
+    {"glaciers": "g.geojson", "maskSpacingM": 32},
+    {"glaciers": "g.geojson", "attribution": "x", "maskSpacingM": 30},  # does not divide 2048
+])
+def test_bake_glacier_mask_rejects_a_bad_block(block):
+    from bake import bake_glacier_mask
+
+    with pytest.raises(ValueError):
+        bake_glacier_mask({"osm": block}, GridSpec(27.7, 86.87, 2, 16, 64.0), Path("."))
+
+
+def test_mera_config_points_at_the_committed_glaciers():
+    cfg = json.loads((Path(__file__).parent / "mera-peak.config.json").read_text())
+    path = Path(__file__).parent / cfg["osm"]["glaciers"]
+    data = json.loads(path.read_text())
+    assert data["type"] == "FeatureCollection" and len(data["features"]) > 0

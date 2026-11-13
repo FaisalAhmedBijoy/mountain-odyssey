@@ -23,6 +23,11 @@
     "sizePx": 2048,
     "attribution": "Contains modified Copernicus Sentinel data 2023"
   },
+  "osm": {
+    "glaciers": "data/mera-peak-glaciers.geojson",
+    "attribution": "© OpenStreetMap contributors",
+    "maskSpacingM": 8
+  },
   "camps": [
     { "id": "khare", "name": "Khare", "targetElevationM": 5000 },
     { "id": "high-camp", "name": "High Camp", "targetElevationM": 5800 }

@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -25,9 +26,12 @@ from terrain_lib import (
     imagery_empty_fraction,
     latlon_bounds,
     place_camps,
+    project_polygons,
+    rasterise_polygons,
     resample_rgb_to_metric,
     resample_to_metric,
     route_max_slope,
+    synthetic_glacier_polygons,
     synthetic_heightmap,
     synthetic_imagery,
     upsample,
@@ -69,6 +73,34 @@ def synthetic_terrain(spec: GridSpec) -> tuple[np.ndarray, list[tuple[str, str, 
     return h, [("khare", "Khare", cell(0.0, 800.0)), ("high-camp", "High Camp", cell(0.0, 0.0))]
 
 
+SYNTHETIC_MASK_SPACING_M = 32.0
+
+
+def bake_glacier_mask(cfg: dict, spec: GridSpec, config_dir: Path) -> tuple[np.ndarray | None, float, str, str]:
+    """(mask, spacing, source, attribution) from the config's "osm" block, or (None, 0.0, "", "")."""
+    block = cfg.get("osm")
+    if block is None:
+        return None, 0.0, "", ""
+    for key in ("glaciers", "attribution"):
+        if not isinstance(block.get(key), str) or not block[key]:
+            raise ValueError(f"osm.{key} must be a non-empty string")
+    spacing = float(block.get("maskSpacingM", 8))
+    cells = spec.size_m / spacing
+    if spacing <= 0 or abs(cells - round(cells)) > 1e-9:
+        raise ValueError(f"osm.maskSpacingM {spacing:g} must divide the terrain size {spec.size_m:g} m")
+    data = json.loads((config_dir / block["glaciers"]).read_text())
+    polygons = [f["geometry"]["coordinates"] for f in data["features"] if f["geometry"]["type"] == "Polygon"]
+    samples = int(round(cells)) + 1
+    mask = rasterise_polygons(project_polygons(polygons, spec.center_lat, spec.center_lon),
+                              samples, spec.origin, spacing)
+    area_km2 = float(mask.sum()) * spacing * spacing / 1e6
+    share = float(mask.mean()) * 100
+    print(f"Glacier mask: {len(polygons)} polygons, {area_km2:.1f} km2 ({share:.1f} % of the square)", flush=True)
+    if mask.sum() == 0:
+        print("WARNING: the glacier mask is empty; check osm.glaciers and the config centre.", flush=True)
+    return mask, spacing, str(data.get("source", "")), block["attribution"]
+
+
 def bake_synthetic(out: str, spec: GridSpec = TEST_PEAK_SPEC, backdrop_spacing_m: float = 64.0,
                    validate: bool = True, imagery_size_px: int = 256) -> dict:
     h, camp_cells = synthetic_terrain(spec)
@@ -87,10 +119,14 @@ def bake_synthetic(out: str, spec: GridSpec = TEST_PEAK_SPEC, backdrop_spacing_m
         {"id": camp_id, "name": name, "position": cell_to_world(rc, spec.origin, spec.spacing_m, h)}
         for camp_id, name, rc in camp_cells
     ]
+    n_mask = int(round(spec.size_m / SYNTHETIC_MASK_SPACING_M)) + 1
+    mask = rasterise_polygons(synthetic_glacier_polygons(), n_mask, spec.origin, SYNTHETIC_MASK_SPACING_M)
     return write_terrain(out, "test-peak", h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
                          "Synthetic test terrain", backdrop_spacing_m=backdrop_spacing_m, routes=routes,
                          route_max_slope_deg=route_limit,
-                         imagery=synthetic_imagery(h, spec.spacing_m, spec.origin, imagery_size_px))
+                         imagery=synthetic_imagery(h, spec.spacing_m, spec.origin, imagery_size_px),
+                         surface_mask=mask, surface_mask_spacing_m=SYNTHETIC_MASK_SPACING_M,
+                         surface_mask_source="synthetic disc")
 
 
 def check_dem_coverage(requested: tuple[float, float, float, float],
@@ -255,9 +291,14 @@ def bake_dem(config_path: str, out: str) -> dict:
     camps.append({"id": "summit", "name": summit_name(cfg), "position": cell_to_world(summit, spec.origin, spec.spacing_m, h)})
     imagery, imagery_attribution = bake_imagery(cfg, spec)
     attribution = cfg["attribution"] + (f" · {imagery_attribution}" if imagery_attribution else "")
+    glacier, glacier_spacing, glacier_source, osm_attribution = bake_glacier_mask(cfg, spec, Path(config_path).parent)
+    if osm_attribution:
+        attribution += f" · {osm_attribution}"
     return write_terrain(out, cfg["id"], h, spec.spacing_m, spec.tile_cells, spec.origin, camps,
                          attribution, cfg["backdropSpacingM"], routes=routes,
-                         route_max_slope_deg=route_limit, imagery=imagery)
+                         route_max_slope_deg=route_limit, imagery=imagery,
+                         surface_mask=glacier, surface_mask_spacing_m=glacier_spacing or None,
+                         surface_mask_source=glacier_source)
 
 
 def main(argv: list[str]) -> int:

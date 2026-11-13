@@ -55,6 +55,66 @@ def latlon_bounds(spec: GridSpec, margin_m: float = 200.0) -> tuple[float, float
     )
 
 
+def lonlat_to_xz(lon: float, lat: float, center_lat: float, center_lon: float) -> tuple[float, float]:
+    """Local metric x (east) and z (south) of a lon/lat point; same transform as resample_to_metric."""
+    return (lon - center_lon) * m_per_deg_lon(center_lat), (center_lat - lat) * M_PER_DEG_LAT
+
+
+def project_polygons(polygons: list, center_lat: float, center_lon: float) -> list:
+    """GeoJSON polygon coordinates ([ring, ...], ring = [[lon, lat], ...]) to metric (x, z) rings."""
+    return [
+        [[lonlat_to_xz(p[0], p[1], center_lat, center_lon) for p in ring] for ring in rings]
+        for rings in polygons
+    ]
+
+
+def rasterise_polygons(polygons_xz: list, samples: int, origin_m: float, spacing_m: float) -> np.ndarray:
+    """uint8 (samples x samples, row = z): 1 where a sample point lies inside a polygon.
+
+    Each polygon is [outer, *holes] in metric (x, z). Rings are filled with the even-odd rule
+    per polygon, so holes are cut; different polygons are OR-ed, so overlaps do not cancel.
+    A sample on a polygon's west or north edge counts as inside, on its east or south edge as outside.
+    """
+    mask = np.zeros((samples, samples), dtype=np.uint8)
+    for rings in polygons_xz:
+        edges = []
+        for ring in rings:
+            pts = np.asarray(ring, dtype=np.float64)
+            if len(pts) < 3:
+                continue
+            if not np.array_equal(pts[0], pts[-1]):
+                pts = np.vstack([pts, pts[:1]])
+            edges.append(np.column_stack([pts[:-1], pts[1:]]))
+        if not edges:
+            continue
+        x1, z1, x2, z2 = np.vstack(edges).T
+        zlo = min(z1.min(), z2.min())
+        zhi = max(z1.max(), z2.max())
+        r0 = max(0, math.ceil((zlo - origin_m) / spacing_m))
+        r1 = min(samples - 1, math.floor((zhi - origin_m) / spacing_m))
+        for r in range(r0, r1 + 1):
+            z = origin_m + r * spacing_m
+            hit = ((z1 <= z) & (z < z2)) | ((z2 <= z) & (z < z1))
+            if not hit.any():
+                continue
+            xi = np.sort(x1[hit] + (z - z1[hit]) * (x2[hit] - x1[hit]) / (z2[hit] - z1[hit]))
+            for a, b in zip(xi[0::2], xi[1::2]):
+                c0 = max(0, math.ceil((a - origin_m) / spacing_m))
+                c1 = min(samples, math.ceil((b - origin_m) / spacing_m))
+                if c1 > c0:
+                    mask[r, c0:c1] = 1
+    return mask
+
+
+def synthetic_glacier_polygons(center_xz: tuple[float, float] = (512.0, -512.0), radius_m: float = 200.0,
+                               segments: int = 64) -> list:
+    """One metric disc polygon around the synthetic mound (north-east, so axis mix-ups show)."""
+    cx, cz = center_xz
+    ring = [(cx + radius_m * math.cos(2 * math.pi * k / segments),
+             cz + radius_m * math.sin(2 * math.pi * k / segments)) for k in range(segments)]
+    return [[ring]]
+
+
 def bilinear_sample(grid: np.ndarray, rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
     grid = np.asarray(grid, dtype=np.float64)
     r0 = np.clip(np.floor(rows).astype(np.int64), 0, grid.shape[0] - 2)
@@ -792,6 +852,9 @@ def write_terrain(
     routes: list[dict] | None = None,
     route_max_slope_deg: float | None = None,
     imagery: np.ndarray | None = None,
+    surface_mask: np.ndarray | None = None,
+    surface_mask_spacing_m: float | None = None,
+    surface_mask_source: str = "",
 ) -> dict:
     out = Path(out_dir)
     tiles_dir = out / "tiles"
@@ -831,6 +894,17 @@ def write_terrain(
             out / "imagery.jpg", quality=85, optimize=True
         )
         manifest["imagery"] = {"file": "imagery.jpg", "sizePx": int(imagery.shape[0])}
+    if surface_mask is not None:
+        n = int(round((h.shape[0] - 1) * spacing_m / surface_mask_spacing_m)) + 1
+        if surface_mask.shape != (n, n) or surface_mask.dtype != np.uint8:
+            raise ValueError(f"surface mask must be uint8 {n}x{n}, got {surface_mask.dtype} {surface_mask.shape}")
+        (out / "surface.u8").write_bytes(np.ascontiguousarray(surface_mask).tobytes())
+        manifest["surfaceMask"] = {
+            "file": "surface.u8",
+            "samples": n,
+            "spacingM": float(surface_mask_spacing_m),
+            "source": surface_mask_source,
+        }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
