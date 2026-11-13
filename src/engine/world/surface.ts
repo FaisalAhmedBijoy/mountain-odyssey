@@ -36,6 +36,29 @@ export function surfaceAt(slopeDeg: number, altitudeM: number, rules: SurfaceRul
   return 'snow';
 }
 
+/** With a baked glacier mask (spec 002): snow/ice only on glaciers, steep ground is rock. */
+export function surfaceWithMask(
+  slopeDeg: number,
+  onGlacier: boolean,
+  rules: SurfaceRules,
+): Surface {
+  if (slopeDeg >= rules.rockMinSlopeDeg) return 'rock';
+  if (!onGlacier) return 'rock';
+  return slopeDeg >= rules.iceMinSlopeDeg ? 'ice' : 'snow';
+}
+
+/** The mask when known (true/false); otherwise the M1 altitude rule. */
+export function classifySurface(
+  slopeDeg: number,
+  altitudeM: number,
+  onGlacier: boolean | null,
+  rules: SurfaceRules,
+): Surface {
+  return onGlacier === null
+    ? surfaceAt(slopeDeg, altitudeM, rules)
+    : surfaceWithMask(slopeDeg, onGlacier, rules);
+}
+
 /** Null when climbable with this gear, otherwise the HUD message (spec §5.1, M2b §3). */
 export function climbRequirement(
   surface: Surface,

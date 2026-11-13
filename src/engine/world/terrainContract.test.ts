@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from '../config/game.config';
-import { decodeHeights, parseManifest } from './terrainData';
+import { glacierAt } from './surfaceMask';
+import { decodeHeights, loadSurfaceMask, parseManifest } from './terrainData';
 import { TerrainSampler } from './TerrainSampler';
 
 // Python -> TypeScript contract: a low-resolution test-peak written by the Python
@@ -69,5 +70,18 @@ describe('Python bake -> TerrainSampler axis contract', () => {
     const { m } = loadFixture();
     expect(m.imagery).toEqual({ file: 'imagery.jpg', sizePx: 256 });
     expect(existsSync(`${dir}imagery.jpg`)).toBe(true);
+  });
+});
+
+describe('Python bake -> glacier mask contract', () => {
+  it('puts the synthetic glacier on the north-east mound only', async () => {
+    const m = parseManifest(JSON.parse(readFileSync(`${dir}manifest.json`, 'utf8')));
+    const bytes = readFileSync(`${dir}surface.u8`);
+    const fetchFn = (async () => new Response(new Uint8Array(bytes))) as typeof fetch;
+    const mask = (await loadSurfaceMask('/fixture', m, fetchFn))!;
+    expect(glacierAt(mask, 512, -512)).toBe(true);
+    expect(glacierAt(mask, -512, -512)).toBe(false);
+    expect(glacierAt(mask, 512, 512)).toBe(false);
+    expect(glacierAt(mask, 0, 0)).toBe(false);
   });
 });

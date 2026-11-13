@@ -1,3 +1,5 @@
+import type { SurfaceMask } from './surfaceMask';
+
 export interface CampDef {
   id: string;
   name: string;
@@ -29,6 +31,8 @@ export interface TerrainManifest {
   routes?: RouteDef[];
   attribution: string;
   imagery?: { file: string; sizePx: number };
+  /** Baked glacier mask (spec 002): square, covers the terrain, row = z. */
+  surfaceMask?: { file: string; samples: number; spacingM: number; source: string };
 }
 
 /** Heights in metres, row-major with row = z (south). */
@@ -115,6 +119,7 @@ export function parseManifest(json: unknown): TerrainManifest {
     ...m,
     routes: parseRoutes(m.routes, campIds),
     imagery: parseImagery(m.imagery),
+    surfaceMask: parseSurfaceMask(m.surfaceMask, (m.tileSamples! - 1) * m.tilesX! * m.spacingM!),
   } as TerrainManifest;
 }
 
@@ -130,6 +135,32 @@ export function parseImagery(raw: unknown): TerrainManifest['imagery'] {
     r.sizePx > 0;
   if (ok) return { file: r.file as string, sizePx: r.sizePx as number };
   console.warn('Terrain manifest "imagery" is malformed; ignoring it');
+  return undefined;
+}
+
+/** A valid mask entry covering a `sizeM` square, or undefined (warning when malformed). */
+export function parseSurfaceMask(raw: unknown, sizeM: number): TerrainManifest['surfaceMask'] {
+  if (raw === undefined || raw === null) return undefined;
+  const r = raw as { file?: unknown; samples?: unknown; spacingM?: unknown; source?: unknown };
+  const ok =
+    typeof r.file === 'string' &&
+    /^[\w.-]+$/.test(r.file) &&
+    typeof r.samples === 'number' &&
+    Number.isInteger(r.samples) &&
+    r.samples > 1 &&
+    typeof r.spacingM === 'number' &&
+    Number.isFinite(r.spacingM) &&
+    r.spacingM > 0 &&
+    Math.abs((r.samples - 1) * r.spacingM - sizeM) < 1e-6;
+  if (ok) {
+    return {
+      file: r.file as string,
+      samples: r.samples as number,
+      spacingM: r.spacingM as number,
+      source: typeof r.source === 'string' ? r.source : '',
+    };
+  }
+  console.warn('Terrain manifest "surfaceMask" is malformed; ignoring it');
   return undefined;
 }
 
@@ -189,4 +220,28 @@ export async function loadBackdrop(
     throw new Error(`Backdrop ${url} has ${heights.length} samples`);
   }
   return { samples: m.backdrop.samples, spacingM: m.backdrop.spacingM, heights };
+}
+
+/** The baked glacier mask, or null when the manifest has none. */
+export async function loadSurfaceMask(
+  baseUrl: string,
+  m: TerrainManifest,
+  fetchFn?: typeof fetch,
+): Promise<SurfaceMask | null> {
+  const sm = m.surfaceMask;
+  if (!sm) return null;
+  const url = `${baseUrl}/${sm.file}`;
+  const res = await fetchWithRetry(url, 3, 300, fetchFn);
+  const data = new Uint8Array(await res.arrayBuffer());
+  if (data.length !== sm.samples * sm.samples) {
+    throw new Error(`Surface mask ${url} has ${data.length} bytes, expected ${sm.samples ** 2}`);
+  }
+  return {
+    samplesX: sm.samples,
+    samplesZ: sm.samples,
+    spacingM: sm.spacingM,
+    originX: m.originX,
+    originZ: m.originZ,
+    data,
+  };
 }

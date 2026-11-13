@@ -3,9 +3,11 @@ import {
   decodeHeights,
   fetchWithRetry,
   imageryUrl,
+  loadSurfaceMask,
   parseImagery,
   parseManifest,
   parseRoutes,
+  parseSurfaceMask,
   tileKey,
   tileUrl,
 } from './terrainData';
@@ -144,5 +146,62 @@ describe('imagery in the manifest', () => {
     const withImagery = parseManifest({ ...base, imagery: { file: 'imagery.jpg', sizePx: 256 } });
     expect(imageryUrl('terrain/t', withImagery)).toBe('terrain/t/imagery.jpg');
     expect(imageryUrl('terrain/t', parseManifest(base))).toBeNull();
+  });
+});
+
+const minimalManifest = () => ({
+  id: 't',
+  spacingM: 64,
+  tileSamples: 17,
+  tilesX: 2,
+  tilesZ: 2,
+  originX: -1024,
+  originZ: -1024,
+  minHeightM: 0,
+  maxHeightM: 1,
+  backdrop: { file: 'backdrop.u16', samples: 17, spacingM: 128 },
+  camps: [
+    { id: 'a', name: 'A', position: [0, 0, 0] },
+    { id: 'b', name: 'B', position: [1, 0, 1] },
+  ],
+  attribution: '',
+});
+
+describe('surface mask', () => {
+  const size = 2048;
+  it('accepts a valid entry that covers the square', () => {
+    expect(
+      parseSurfaceMask({ file: 'surface.u8', samples: 65, spacingM: 32, source: 's' }, size),
+    ).toEqual({ file: 'surface.u8', samples: 65, spacingM: 32, source: 's' });
+    expect(parseSurfaceMask({ file: 'surface.u8', samples: 65, spacingM: 32 }, size)?.source).toBe(
+      '',
+    );
+    expect(parseSurfaceMask(undefined, size)).toBeUndefined();
+  });
+  it('drops malformed entries', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    for (const bad of [
+      { file: '../x', samples: 65, spacingM: 32 },
+      { file: 'surface.u8', samples: 1, spacingM: 32 },
+      { file: 'surface.u8', samples: 65, spacingM: 0 },
+      { file: 'surface.u8', samples: 64, spacingM: 32 }, // does not cover 2048 m
+      { file: 'surface.u8', samples: 65.5, spacingM: 32 },
+    ]) {
+      expect(parseSurfaceMask(bad, size)).toBeUndefined();
+    }
+    warn.mockRestore();
+  });
+  it('loads the bytes and checks their count', async () => {
+    const m = parseManifest({
+      ...minimalManifest(),
+      surfaceMask: { file: 'surface.u8', samples: 3, spacingM: 1024, source: '' },
+    });
+    const ok = (async () => new Response(new Uint8Array(9).fill(1))) as typeof fetch;
+    const mask = await loadSurfaceMask('/t', m, ok);
+    expect(mask).toMatchObject({ samplesX: 3, samplesZ: 3, spacingM: 1024, originX: m.originX });
+    expect(mask!.data.length).toBe(9);
+    const short = (async () => new Response(new Uint8Array(8))) as typeof fetch;
+    await expect(loadSurfaceMask('/t', m, short)).rejects.toThrow(/expected 9/);
+    expect(await loadSurfaceMask('/t', parseManifest(minimalManifest()), ok)).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_CONFIG } from '../config/game.config';
-import { climbRequirement, NO_GEAR, surfaceAt } from './surface';
+import { classifySurface, climbRequirement, NO_GEAR, surfaceAt, surfaceWithMask } from './surface';
 
 const rules = GAME_CONFIG.surface;
 
@@ -51,5 +51,39 @@ describe('climbRequirement', () => {
       expect(climbRequirement(s, gloved, LIMIT - 5, LIMIT)).toBeNull();
     }
     expect(climbRequirement('rock', NO_GEAR, LIMIT, LIMIT)).toBeNull();
+  });
+});
+
+describe('surfaceWithMask', () => {
+  it('is rock on steep ground, on or off a glacier', () => {
+    expect(surfaceWithMask(45, true, rules)).toBe('rock');
+    expect(surfaceWithMask(40, true, rules)).toBe('rock');
+    expect(surfaceWithMask(45, false, rules)).toBe('rock');
+  });
+  it('is snow below 25° and ice from 25° on a glacier', () => {
+    expect(surfaceWithMask(10, true, rules)).toBe('snow');
+    expect(surfaceWithMask(25, true, rules)).toBe('ice');
+    expect(surfaceWithMask(39, true, rules)).toBe('ice');
+  });
+  it('is rock off a glacier', () => {
+    expect(surfaceWithMask(10, false, rules)).toBe('rock');
+    expect(surfaceWithMask(30, false, rules)).toBe('rock');
+  });
+});
+
+describe('classifySurface', () => {
+  it('falls back to surfaceAt without a mask', () => {
+    for (const [slope, alt] of [
+      [10, 5100],
+      [10, 5350],
+      [30, 5600],
+      [45, 6000],
+    ]) {
+      expect(classifySurface(slope, alt, null, rules)).toBe(surfaceAt(slope, alt, rules));
+    }
+  });
+  it('uses the mask when known, whatever the altitude', () => {
+    expect(classifySurface(10, 5100, true, rules)).toBe('snow');
+    expect(classifySurface(10, 6000, false, rules)).toBe('rock');
   });
 });
